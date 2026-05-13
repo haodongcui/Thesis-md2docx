@@ -15,22 +15,22 @@
 
 ```bash
 python3 -m py_compile md2docx.py $(find thesis_md2docx -name '*.py' -type f | sort)
-bash demo.sh
-./md2docx.sh doctor --backend auto
+./export-example.sh
+python3 md2docx.py doctor --backend auto
 ```
 
 如果修改了公式转换或 PDF 预览相关代码，还建议运行：
 
 ```bash
-./md2docx.sh doctor --backend word
-./md2docx.sh pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend word
+python3 md2docx.py doctor --backend word
+python3 md2docx.py pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend word
 ```
 
 如果修改了 LibreOffice 后端，还建议运行：
 
 ```bash
-./md2docx.sh doctor --backend libreoffice
-./md2docx.sh pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend libreoffice
+python3 md2docx.py doctor --backend libreoffice
+python3 md2docx.py pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend libreoffice
 ```
 
 ## 提交内容

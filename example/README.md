@@ -19,31 +19,31 @@ example/
 在仓库根目录执行：
 
 ```bash
-./md2docx.sh docx example/thesis-demo.md example/thesis-demo.generated.docx --profile xju-undergraduate-thesis
+./export-example.sh
 ```
 
 Windows PowerShell：
 
 ```powershell
-.\md2docx.ps1 docx example\thesis-demo.md example\thesis-demo.generated.docx --profile xju-undergraduate-thesis
+.\export-example.ps1
 ```
 
 如果当前环境是 WSL，且 Windows 侧安装了 Microsoft Word，可以继续用高保真 Word 后端导出 PDF：
 
 ```bash
-./md2docx.sh pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend word
+python3 md2docx.py pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend word
 ```
 
 如果没有 Word，也可以使用 LibreOffice 后端做快速预览：
 
 ```bash
-./md2docx.sh pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend libreoffice
+python3 md2docx.py pdf example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --backend libreoffice
 ```
 
 也可以一步生成 DOCX 和 PDF：
 
 ```bash
-./md2docx.sh all example/thesis-demo.md example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --profile xju-undergraduate-thesis --backend auto
+python3 md2docx.py all example/thesis-demo.md example/thesis-demo.generated.docx example/thesis-demo.generated.pdf --profile xju-undergraduate-thesis --backend auto
 ```
 
 ## 示例覆盖内容

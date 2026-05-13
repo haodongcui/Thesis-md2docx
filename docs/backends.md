@@ -21,28 +21,28 @@
 检查核心环境：
 
 ```bash
-./md2docx.sh doctor
+python3 md2docx.py doctor
 ```
 
 检查 PDF 后端：
 
 ```bash
-./md2docx.sh doctor --backend auto
-./md2docx.sh doctor --backend word
-./md2docx.sh doctor --backend libreoffice
+python3 md2docx.py doctor --backend auto
+python3 md2docx.py doctor --backend word
+python3 md2docx.py doctor --backend libreoffice
 ```
 
 DOCX 转 PDF：
 
 ```bash
-./md2docx.sh pdf thesis.docx thesis.pdf --backend word
-./md2docx.sh pdf thesis.docx thesis.pdf --backend libreoffice
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
 ```
 
 Markdown 一步生成 DOCX 和 PDF：
 
 ```bash
-./md2docx.sh all thesis.md thesis.docx thesis.pdf --profile xju-undergraduate-thesis --backend auto
+python3 md2docx.py all thesis.md thesis.docx thesis.pdf --profile xju-undergraduate-thesis --backend auto
 ```
 
 ## Word 后端
@@ -57,20 +57,20 @@ Word 后端通过 Windows COM 注册名 `Word.Application` 启动 Microsoft Word
 WSL 下可运行：
 
 ```bash
-./md2docx.sh doctor --backend word
-./md2docx.sh pdf thesis.docx thesis.pdf --backend word
+python3 md2docx.py doctor --backend word
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
 ```
 
 如果临时目录需要指定到 Windows 本地磁盘：
 
 ```bash
-./md2docx.sh pdf thesis.docx thesis.pdf --backend word --tmp-root /mnt/c/Temp/thesis-word-docx2pdf
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend word --tmp-root /mnt/c/Temp/thesis-word-docx2pdf
 ```
 
 Windows PowerShell：
 
 ```powershell
-.\md2docx.ps1 pdf thesis.docx thesis.pdf --backend word --tmp-root C:\Temp\thesis-word-docx2pdf
+py -3 md2docx.py pdf thesis.docx thesis.pdf --backend word --tmp-root C:\Temp\thesis-word-docx2pdf
 ```
 
 常见依赖：
@@ -111,14 +111,14 @@ sudo apt-get install -y libreoffice
 检查和导出：
 
 ```bash
-./md2docx.sh doctor --backend libreoffice
-./md2docx.sh pdf thesis.docx thesis.pdf --backend libreoffice
+python3 md2docx.py doctor --backend libreoffice
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
 ```
 
 如果 `soffice` 不在 PATH 中，可以指定路径：
 
 ```bash
-./md2docx.sh pdf thesis.docx thesis.pdf --backend libreoffice --soffice /path/to/soffice
+python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice --soffice /path/to/soffice
 ```
 
 或使用环境变量：
