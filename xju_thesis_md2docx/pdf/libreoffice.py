@@ -4,7 +4,9 @@ import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from .common import (
     LIBREOFFICE_BACKEND_DIR,
@@ -77,6 +79,79 @@ def _write_export_macro(job_dir: Path) -> None:
     shutil.copy2(macro_template, macro_dir / "Module1.xba")
 
 
+def _font_substitution_pairs() -> list[tuple[str, str]]:
+    return [
+        ("宋体", "SimSun"),
+        ("新宋体", "NSimSun"),
+        ("黑体", "SimHei"),
+        ("楷体", "KaiTi"),
+        ("楷体_GB2312", "KaiTi"),
+        ("仿宋", "FangSong"),
+        ("等线", "DengXian"),
+    ]
+
+
+def _font_name_map() -> dict[str, str]:
+    return dict(_font_substitution_pairs())
+
+
+def _write_font_substitution_config(profile_dir: Path) -> None:
+    if not bool_env("XJU_LIBREOFFICE_DOCX2PDF_FONT_SUBSTITUTION", True):
+        return
+
+    user_dir = profile_dir / "user"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    registry_path = user_dir / "registrymodifications.xcu"
+
+    items = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<oor:items xmlns:oor="http://openoffice.org/2001/registry">',
+        '<item oor:path="/org.openoffice.Office.Common/Font/Substitution">',
+        '<prop oor:name="Replacement" oor:op="fuse"><value>true</value></prop>',
+        "</item>",
+    ]
+    for idx, (source, target) in enumerate(_font_substitution_pairs()):
+        items.extend(
+            [
+                '<item oor:path="/org.openoffice.Office.Common/Font/Substitution/FontPairs">',
+                f'<node oor:name="_xju_{idx}" oor:op="replace">',
+                f'<prop oor:name="ReplaceFont" oor:op="fuse"><value>{escape(source)}</value></prop>',
+                f'<prop oor:name="SubstituteFont" oor:op="fuse"><value>{escape(target)}</value></prop>',
+                '<prop oor:name="Always" oor:op="fuse"><value>true</value></prop>',
+                '<prop oor:name="OnScreenOnly" oor:op="fuse"><value>false</value></prop>',
+                "</node>",
+                "</item>",
+            ]
+        )
+    items.append("</oor:items>")
+    registry_path.write_text("\n".join(items) + "\n", encoding="utf-8")
+
+
+def _rewrite_docx_font_names_for_libreoffice(input_path: Path, output_path: Path) -> None:
+    if not bool_env("XJU_LIBREOFFICE_DOCX2PDF_FONT_SUBSTITUTION", True):
+        shutil.copy2(input_path, output_path)
+        return
+
+    replacements = _font_name_map()
+    attr_names = ("ascii", "hAnsi", "eastAsia", "cs", "name", "val")
+
+    def rewrite_xml(text: str) -> str:
+        for source, target in replacements.items():
+            for attr in attr_names:
+                text = text.replace(f'w:{attr}="{source}"', f'w:{attr}="{target}"')
+        return text
+
+    with zipfile.ZipFile(input_path, "r") as src, zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename.startswith("word/") and info.filename.endswith(".xml"):
+                try:
+                    data = rewrite_xml(data.decode("utf-8")).encode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+            dst.writestr(info, data)
+
+
 def convert(
     input_docx: str | Path,
     output_pdf: str | Path | None = None,
@@ -117,7 +192,8 @@ def convert(
         job_output = job_dir / "input.pdf"
         profile_dir = job_dir / "profile"
         profile_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(input_path, job_input)
+        _write_font_substitution_config(profile_dir)
+        _rewrite_docx_font_names_for_libreoffice(input_path, job_input)
 
         common_args = [
             str(soffice_path),

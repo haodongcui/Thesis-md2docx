@@ -264,7 +264,7 @@ tools/docx2pdf/env.example
 
 Word 后端不需要设置 `WINWORD.EXE` 绝对路径。它通过 Windows COM 注册名 `Word.Application` 启动 Word；如果 `doctor` 检查失败，通常要修复 Windows 侧 Word/Office 安装、首次启动授权弹窗或 COM 注册状态。
 
-LibreOffice 后端使用 `soffice` headless 模式。默认会用临时 profile 打开文档，刷新目录、索引和文本域，再导出 PDF；`--no-update-fields` 可切换到纯 `--convert-to` 模式。
+LibreOffice 后端使用 `soffice` headless 模式。默认会用临时 profile 打开文档，刷新目录、索引和文本域，再导出 PDF；`--no-update-fields` 可切换到纯 `--convert-to` 模式。导出时还会默认注入临时字体替换表，并改写临时 DOCX 副本中的字体名，尝试把 `宋体 -> SimSun`、`黑体 -> SimHei`、`楷体_GB2312 -> KaiTi` 等中文字体名映射到系统字体。可以用 `XJU_LIBREOFFICE_DOCX2PDF_FONT_SUBSTITUTION=0` 关闭该尝试。该优化是尽力而为：当前测试环境中 `SimHei` 和 `KaiTi` 能进入 LibreOffice PDF，但 `SimSun` 仍会被 LibreOffice 7.3 回退为 `UMingCN`，分页仍与 Word 不一致。
 
 WPS 后端目前未实现。可行方向包括：
 

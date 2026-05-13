@@ -37,6 +37,7 @@ def libreoffice_available() -> bool:
 
 
 def convert_word(args: argparse.Namespace) -> Path:
+    update_fields = None if args.no_update_fields is None else not args.no_update_fields
     return word.convert(
         args.input,
         args.output,
@@ -44,18 +45,19 @@ def convert_word(args: argparse.Namespace) -> Path:
         vbs_template=args.vbs_template,
         keep_tmp=args.keep_tmp,
         skip_word_check=args.skip_word_check,
-        update_fields=not args.no_update_fields,
+        update_fields=update_fields,
     )
 
 
 def convert_libreoffice(args: argparse.Namespace) -> Path:
+    update_fields = None if args.no_update_fields is None else not args.no_update_fields
     return libreoffice.convert(
         args.input,
         args.output,
         soffice=args.soffice,
         tmp_root=args.tmp_root,
         keep_tmp=args.keep_tmp,
-        update_fields=not args.no_update_fields,
+        update_fields=update_fields,
     )
 
 

@@ -19,11 +19,13 @@ def add_backend_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--keep-tmp",
         action="store_true",
+        default=None,
         help="Keep temporary files for debugging.",
     )
     parser.add_argument(
         "--no-update-fields",
         action="store_true",
+        default=None,
         help="Do not refresh Word/LibreOffice fields before exporting PDF.",
     )
     parser.add_argument(
@@ -35,6 +37,7 @@ def add_backend_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--skip-word-check",
         action="store_true",
+        default=None,
         help="Word backend only: skip the upfront COM availability check.",
     )
     parser.add_argument(
