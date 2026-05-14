@@ -12,8 +12,10 @@ from .frontmatter import (
     build_statement_body_paragraph,
     build_statement_signature_paragraph,
     build_taskbook_elements,
+    XJU_DECLARATION_SIGNATURE,
 )
 from ...frontmatter import parse_inline_image_value, split_statement_content
+from ...layout import FrontMatterPageSpec
 from ...markdown import (
     extract_abstract_and_keywords,
     parse_cover_info,
@@ -26,7 +28,146 @@ from ...ooxml.render import (
     page_break_xml,
     toc_field_paragraph_xml,
 )
+from ...styles import StyleRole
 from ..base import ThesisProfile
+
+
+def _front_text(front_sections: dict[str, str], page: FrontMatterPageSpec) -> str:
+    if page.source_key is None:
+        return ""
+    return front_sections.get(page.source_key, "").strip()
+
+
+def _append_cover_page(
+    elements: list[str],
+    *,
+    thesis_title: str,
+    cover_info: dict[str, str],
+    cover_sect: str,
+    cover_assets_dir: Path | None,
+    media_manager: MediaManager | None,
+) -> None:
+    elements.extend(
+        build_cover_elements(
+            thesis_title,
+            cover_info,
+            cover_assets_dir=cover_assets_dir,
+            media_manager=media_manager,
+        )
+    )
+    # Keep the cover and its blank verso page in an empty-footer section. The
+    # second page break carries the section properties, so the declaration starts
+    # on physical page 3 while Roman numbering still starts at I.
+    elements.append(page_break_xml())
+    elements.append(add_section_to_paragraph_xml(page_break_xml(), cover_sect))
+
+
+def _append_declaration_page(
+    elements: list[str],
+    *,
+    page: FrontMatterPageSpec,
+    declaration: str,
+    math_converter: MathConverter | None,
+    reference_anchors: dict[str, str] | None,
+    markdown_dir: Path | None,
+    media_manager: MediaManager | None,
+) -> None:
+    if not declaration:
+        return
+    elements.append(build_front_heading(page.title, statement=True))
+    statement_paragraphs, author_value, date_value = split_statement_content(declaration)
+    for paragraph in statement_paragraphs:
+        elements.append(
+            build_statement_body_paragraph(
+                paragraph,
+                math_converter=math_converter,
+                reference_anchors=reference_anchors,
+            )
+        )
+    signature_image = None
+    signature_alt = XJU_DECLARATION_SIGNATURE.signature_alt
+    inline_signature = parse_inline_image_value(author_value)
+    if inline_signature is not None and media_manager is not None and markdown_dir is not None:
+        signature_alt, signature_target = inline_signature
+        signature_image = media_manager.register_image(markdown_dir / signature_target)
+        if signature_image is not None:
+            author_value = ""
+    for _ in range(XJU_DECLARATION_SIGNATURE.blank_count(has_signature_image=signature_image is not None)):
+        elements.append(build_blank_paragraph(run_size=24))
+    elements.append(
+        build_statement_signature_paragraph(
+            XJU_DECLARATION_SIGNATURE.author_label,
+            author_value,
+            signature_image=signature_image,
+            media_manager=media_manager,
+            signature_alt=signature_alt or XJU_DECLARATION_SIGNATURE.signature_alt,
+        )
+    )
+    elements.append(
+        build_statement_signature_paragraph(XJU_DECLARATION_SIGNATURE.date_label, date_value, is_date=True)
+    )
+    if page.page_break_after:
+        elements.append(page_break_xml())
+
+
+def _append_taskbook_page(
+    elements: list[str],
+    *,
+    taskbook: str,
+    cover_info: dict[str, str],
+) -> bool:
+    if not taskbook:
+        return False
+    elements.extend(build_taskbook_elements(taskbook, cover_info))
+    return True
+
+
+def _append_abstract_page(
+    elements: list[str],
+    *,
+    page: FrontMatterPageSpec,
+    text: str,
+    page_break_before: bool,
+    math_converter: MathConverter | None,
+    reference_anchors: dict[str, str] | None,
+) -> None:
+    paragraphs, keywords = extract_abstract_and_keywords(text, page.keyword_prefix)
+    if not paragraphs and not keywords:
+        return
+    elements.append(
+        build_front_heading(
+            page.title,
+            english=page.english,
+            page_break_before=page_break_before,
+        )
+    )
+    for paragraph in paragraphs:
+        elements.append(
+            build_body_paragraph(
+                paragraph,
+                english=page.english,
+                math_converter=math_converter,
+                reference_anchors=reference_anchors,
+            )
+        )
+    keyword_paragraph = build_keyword_paragraph(keywords, english=page.english)
+    if keyword_paragraph:
+        elements.append(build_blank_paragraph())
+        elements.append(keyword_paragraph)
+    if page.page_break_after:
+        elements.append(page_break_xml())
+
+
+def _append_toc_page(
+    elements: list[str],
+    *,
+    thesis_profile: ThesisProfile,
+    page: FrontMatterPageSpec,
+    front_sect: str,
+) -> None:
+    elements.append(build_front_heading(page.title, toc=True))
+    toc_style = thesis_profile.style_roles().require(StyleRole.TOC_FIELD)
+    elements.append(add_section_to_paragraph_xml(toc_field_paragraph_xml(style=toc_style), front_sect))
 
 
 def build_document(
@@ -55,100 +196,49 @@ def build_document(
     body_continue_sect = thesis_profile.section_from_spec(layout.body_continue)
 
     elements: list[str] = []
-    elements.extend(
-        build_cover_elements(
-            thesis_title,
-            cover_info,
-            cover_assets_dir=cover_assets_dir,
-            media_manager=media_manager,
-        )
-    )
-    elements.append(page_break_xml())
-    elements.append(add_section_to_paragraph_xml(page_break_xml(), cover_sect))
-
-    declaration = front_sections.get(front_spec.declaration_key or "", "").strip()
-    if declaration:
-        elements.append(build_front_heading(front_spec.declaration_title, statement=True))
-        statement_paragraphs, author_value, date_value = split_statement_content(declaration)
-        for paragraph in statement_paragraphs:
-            elements.append(
-                build_statement_body_paragraph(
-                    paragraph,
-                    math_converter=math_converter,
-                    reference_anchors=reference_anchors,
-                )
-            )
-        signature_image = None
-        signature_alt = "电子签名"
-        inline_signature = parse_inline_image_value(author_value)
-        if inline_signature is not None and media_manager is not None and markdown_dir is not None:
-            signature_alt, signature_target = inline_signature
-            signature_image = media_manager.register_image(markdown_dir / signature_target)
-            if signature_image is not None:
-                author_value = ""
-        signature_blank_count = 10 if signature_image is not None else 14
-        for _ in range(signature_blank_count):
-            elements.append(build_blank_paragraph(run_size=24))
-        elements.append(
-            build_statement_signature_paragraph(
-                "作者签名：",
-                author_value,
-                signature_image=signature_image,
+    taskbook_added = False
+    for page in thesis_profile.front_matter_plan().pages:
+        if page.kind == "cover":
+            _append_cover_page(
+                elements,
+                thesis_title=thesis_title,
+                cover_info=cover_info,
+                cover_sect=cover_sect,
+                cover_assets_dir=cover_assets_dir,
                 media_manager=media_manager,
-                signature_alt=signature_alt or "电子签名",
             )
-        )
-        elements.append(build_statement_signature_paragraph("签字日期：", date_value, is_date=True))
-        elements.append(page_break_xml())
-
-    taskbook = front_sections.get(front_spec.taskbook_key or "", "").strip()
-    if taskbook:
-        elements.extend(build_taskbook_elements(taskbook, cover_info))
-
-    cn_abstract, cn_keywords = extract_abstract_and_keywords(
-        front_sections.get(front_spec.cn_abstract_key or "", ""),
-        front_spec.cn_keyword_prefix,
-    )
-    if cn_abstract or cn_keywords:
-        elements.append(build_front_heading(front_spec.cn_abstract_title, page_break_before=bool(taskbook)))
-        for paragraph in cn_abstract:
-            elements.append(
-                build_body_paragraph(
-                    paragraph,
-                    math_converter=math_converter,
-                    reference_anchors=reference_anchors,
-                )
+            continue
+        if page.kind == "declaration":
+            _append_declaration_page(
+                elements,
+                page=page,
+                declaration=_front_text(front_sections, page),
+                math_converter=math_converter,
+                reference_anchors=reference_anchors,
+                markdown_dir=markdown_dir,
+                media_manager=media_manager,
             )
-        keyword_paragraph = build_keyword_paragraph(cn_keywords)
-        if keyword_paragraph:
-            elements.append(build_blank_paragraph())
-            elements.append(keyword_paragraph)
-        elements.append(page_break_xml())
-
-    en_abstract, en_keywords = extract_abstract_and_keywords(
-        front_sections.get(front_spec.en_abstract_key or "", ""),
-        front_spec.en_keyword_prefix,
-    )
-    if en_abstract or en_keywords:
-        elements.append(build_front_heading(front_spec.en_abstract_title, english=True))
-        for paragraph in en_abstract:
-            elements.append(
-                build_body_paragraph(
-                    paragraph,
-                    english=True,
-                    math_converter=math_converter,
-                    reference_anchors=reference_anchors,
-                )
+            continue
+        if page.kind == "taskbook":
+            taskbook_added = _append_taskbook_page(
+                elements,
+                taskbook=_front_text(front_sections, page),
+                cover_info=cover_info,
             )
-        keyword_paragraph = build_keyword_paragraph(en_keywords, english=True)
-        if keyword_paragraph:
-            elements.append(build_blank_paragraph())
-            elements.append(keyword_paragraph)
-        elements.append(page_break_xml())
-
-    elements.append(build_front_heading(front_spec.toc_title, toc=True))
-    toc_style = thesis_profile.style_roles().require("toc.field")
-    elements.append(add_section_to_paragraph_xml(toc_field_paragraph_xml(style=toc_style), front_sect))
+            continue
+        if page.kind == "abstract":
+            _append_abstract_page(
+                elements,
+                page=page,
+                text=_front_text(front_sections, page),
+                page_break_before=(not page.english and taskbook_added) or page.page_break_before,
+                math_converter=math_converter,
+                reference_anchors=reference_anchors,
+            )
+            continue
+        if page.kind == "toc":
+            _append_toc_page(elements, thesis_profile=thesis_profile, page=page, front_sect=front_sect)
+            continue
 
     body_elements, body_has_section_breaks = build_document_elements(
         body_text,

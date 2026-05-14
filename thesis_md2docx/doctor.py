@@ -15,9 +15,10 @@ from .constants import (
     LATEX2OMML_NODE_REQUIRED_MODULES,
     LATEX2OMML_NODE_SCRIPT,
 )
+from .layout import validate_front_matter_plan
 from .pdf.main import run_doctor as run_pdf_doctor
 from .profiles import DEFAULT_PROFILE_NAME, get_profile, profile_names
-from .styles import validate_style_catalog
+from .styles import validate_body_render_profile, validate_style_catalog
 
 
 def _print_check(ok: bool, message: str) -> bool:
@@ -95,13 +96,32 @@ def _check_profiles() -> int:
     try:
         profile = get_profile(DEFAULT_PROFILE_NAME)
         _print_check(True, f"default profile: {profile.name}")
-        issues = validate_style_catalog(profile.style_catalog(), profile.style_roles())
+        catalog = profile.style_catalog()
+        roles = profile.style_roles()
+        front_issues = validate_front_matter_plan(profile.front_matter_spec(), profile.front_matter_plan())
+        missing_roles = roles.missing_roles(profile.required_style_roles())
+        issues = validate_style_catalog(catalog, roles)
+        body_issues = validate_body_render_profile(profile.body_style_profile(), catalog)
+        if front_issues:
+            for issue in front_issues:
+                _print_check(False, f"profile front matter issue: {issue.message}")
+            status = 1
+        if missing_roles:
+            for role in missing_roles:
+                _print_check(False, f"profile missing required style role: {role}")
+            status = 1
         if issues:
             for issue in issues:
                 _print_check(False, f"profile style issue: {issue.message}")
             status = 1
+        if body_issues:
+            for issue in body_issues:
+                _print_check(False, f"profile body render issue: {issue.message}")
+            status = 1
+        if not front_issues and not missing_roles and not issues and not body_issues:
+            _print_check(True, f"profile styles: {len(catalog.styles)} styles")
         else:
-            _print_check(True, f"profile styles: {len(profile.style_catalog().styles)} styles")
+            _print_warn("profile style checks failed; fix the profile before exporting production DOCX files")
     except ValueError as exc:
         _print_check(False, str(exc))
         status = 1

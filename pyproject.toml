@@ -15,6 +15,12 @@ authors = [
 dependencies = [
   "Pillow>=9.0"
 ]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=6"
+]
+
 keywords = ["markdown", "docx", "pdf", "thesis", "ooxml", "xinjiang-university"]
 classifiers = [
   "Development Status :: 3 - Alpha",

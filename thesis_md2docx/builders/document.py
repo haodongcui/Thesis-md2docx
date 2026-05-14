@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, cast
 
 from ..body_rules import BodyParseRules
 from ..constants import *
@@ -31,12 +30,20 @@ from ..ooxml.render import (
     table_xml,
 )
 from ..parser import parse_body_blocks
+from ..styles import BodyRenderProfile
 from ..table_utils import parse_table_split_spec, split_table_rows
+
+
+def _require_hook(profile: BodyRenderProfile, name: str):
+    hook = getattr(profile, name)
+    if hook is None:
+        raise ValueError(f"body render profile is missing hook: {name}")
+    return hook
 
 
 def build_document_elements(
     text: str,
-    profile: dict[str, object],
+    profile: BodyRenderProfile,
     *,
     rules: BodyParseRules | None = None,
     treat_first_heading_as_title: bool = True,
@@ -61,7 +68,7 @@ def build_document_elements(
 
 def build_document_blocks(
     blocks: list[Block],
-    profile: dict[str, object],
+    profile: BodyRenderProfile,
     *,
     rules: BodyParseRules | None = None,
     treat_first_heading_as_title: bool = True,
@@ -82,17 +89,14 @@ def build_document_blocks(
     pending_table_split: list[int] | None = None
     last_table_caption_text: str | None = None
 
-    heading_builder = cast(Callable[..., str], profile["heading_builder"])
-    acknowledgement_heading_builder = cast(
-        Callable[[str, dict[str, object]], str],
-        profile["acknowledgement_heading_builder"],
-    )
-    caption_builder = cast(Callable[..., str], profile["caption_builder"])
-    reference_builder = cast(Callable[..., str], profile["reference_builder"])
-    table_builder = cast(Callable[..., str], profile.get("table_builder", table_xml))
-    appendix_heading_normalizer = cast(Callable[[str, int], str], profile["appendix_heading_normalizer"])
-    appendix_reference_normalizer = cast(Callable[[str, int], str], profile["appendix_reference_normalizer"])
-    section_pr_builder = cast(Callable[..., str], profile["section_pr_builder"])
+    heading_builder = _require_hook(profile, "heading_builder")
+    acknowledgement_heading_builder = _require_hook(profile, "acknowledgement_heading_builder")
+    caption_builder = _require_hook(profile, "caption_builder")
+    reference_builder = _require_hook(profile, "reference_builder")
+    table_builder = profile.table_builder or table_xml
+    appendix_heading_normalizer = _require_hook(profile, "appendix_heading_normalizer")
+    appendix_reference_normalizer = _require_hook(profile, "appendix_reference_normalizer")
+    section_pr_builder = _require_hook(profile, "section_pr_builder")
 
     def is_chapter_section_break(element: str) -> bool:
         return "<w:sectPr>" in element and 'w:type w:val="nextPage"' in element
@@ -147,11 +151,11 @@ def build_document_blocks(
             keep_next_caption = rules.is_table_caption(paragraph)
             if keep_next_caption:
                 last_table_caption_text = paragraph
-            caption_style = profile.get("caption") or profile.get("normal")
+            caption_style = profile.styles.caption or profile.styles.normal
             elements.append(
                 caption_builder(
                     paragraph,
-                    style=str(caption_style) if caption_style else None,
+                    style=caption_style,
                     math_converter=math_converter,
                     reference_anchors=reference_anchors,
                     keep_next=keep_next_caption,
@@ -159,17 +163,17 @@ def build_document_blocks(
             )
             return
 
-        normal_run = profile.get("normal_run")
-        ppr_extra = str(profile.get("normal_ppr_extra", ""))
+        normal_run = profile.normal_run.to_kwargs() if profile.normal_run else None
+        normal_paragraph = profile.normal_paragraph
         if normal_run:
             elements.append(
                 paragraph_with_inline_math_xml(
                     paragraph,
-                    style=str(profile.get("normal")) if profile.get("normal") else None,
-                    ppr_extra=ppr_extra,
-                    first_line_chars=int(profile.get("normal_first_line_chars", 0) or 0) or None,
-                    first_line=int(profile.get("normal_first_line", 0) or 0) or None,
-                    run_kwargs=dict(normal_run),
+                    style=profile.styles.normal,
+                    ppr_extra=normal_paragraph.ppr_extra,
+                    first_line_chars=normal_paragraph.first_line_chars,
+                    first_line=normal_paragraph.first_line,
+                    run_kwargs=normal_run,
                     math_converter=math_converter,
                     reference_anchors=reference_anchors,
                 )
@@ -178,10 +182,10 @@ def build_document_blocks(
             elements.append(
                 paragraph_with_inline_math_xml(
                     paragraph,
-                    style=str(profile.get("normal")) if profile.get("normal") else None,
-                    first_line_chars=int(profile.get("normal_first_line_chars", 0) or 0) or None,
-                    first_line=int(profile.get("normal_first_line", 0) or 0) or None,
-                    ppr_extra=ppr_extra,
+                    style=profile.styles.normal,
+                    first_line_chars=normal_paragraph.first_line_chars,
+                    first_line=normal_paragraph.first_line,
+                    ppr_extra=normal_paragraph.ppr_extra,
                     math_converter=math_converter,
                     reference_anchors=reference_anchors,
                 )
@@ -240,7 +244,7 @@ def build_document_blocks(
                 in_appendix = True
 
             if len(elements) == 0 and treat_first_heading_as_title:
-                elements.append(paragraph_xml(heading_text, style=str(profile.get("title")) if profile.get("title") else None, align="center"))
+                elements.append(paragraph_xml(heading_text, style=profile.styles.title, align="center"))
                 continue
 
             if rules.is_appendix_heading(current_top_heading) and rules.is_appendix_item_heading(raw_level):
@@ -261,7 +265,7 @@ def build_document_blocks(
             is_unnumbered = rules.is_unnumbered_heading(heading_text, in_appendix=in_appendix, level=level)
             display_heading_text = rules.display_heading_text(heading_text)
 
-            caption_style_id = str(profile.get("caption", ""))
+            caption_style_id = profile.styles.caption or ""
             previous_is_caption = bool(
                 caption_style_id and elements and f'w:pStyle w:val="{caption_style_id}"' in elements[-1]
             )
@@ -282,7 +286,7 @@ def build_document_blocks(
             elements.append(
                 paragraph_xml(
                     block.text,
-                    style=str(profile.get("quote")) if profile.get("quote") else None,
+                    style=profile.styles.quote,
                 )
             )
             continue
@@ -293,13 +297,13 @@ def build_document_blocks(
                 width = len(rows[0])
                 normalized = [row[:width] + [""] * max(0, width - len(row)) for row in rows]
                 table_chunks = split_table_rows(normalized, pending_table_split or [])
-                caption_style = profile.get("caption") or profile.get("normal")
+                caption_style = profile.styles.caption or profile.styles.normal
                 for chunk_idx, table_chunk in enumerate(table_chunks):
                     if chunk_idx > 0 and last_table_caption_text:
                         elements.append(
                             caption_builder(
                                 f"{last_table_caption_text}（续）",
-                                style=str(caption_style) if caption_style else None,
+                                style=caption_style,
                                 math_converter=math_converter,
                                 reference_anchors=reference_anchors,
                                 keep_next=True,
@@ -308,7 +312,7 @@ def build_document_blocks(
                     elements.append(
                         table_builder(
                             table_chunk,
-                            cell_style=str(profile["table"]) if profile.get("table") else None,
+                            cell_style=profile.styles.table_cell,
                             math_converter=math_converter,
                             reference_anchors=reference_anchors,
                         )
@@ -321,9 +325,9 @@ def build_document_blocks(
             elements.append(
                 paragraph_xml(
                     block.text,
-                    style=str(profile.get("code")) if profile.get("code") else None,
+                    style=profile.styles.code,
                     preserve_breaks=True,
-                    ppr_extra=str(profile.get("code_ppr_extra", "")),
+                    ppr_extra=profile.code_paragraph.ppr_extra,
                 )
             )
             continue
@@ -332,7 +336,7 @@ def build_document_blocks(
             elements.append(
                 math_paragraph_xml(
                     block.text,
-                    style=str(profile.get("math")) if profile.get("math") else None,
+                    style=profile.styles.math,
                     math_converter=math_converter,
                     equation_number=next_formula_number(),
                 )

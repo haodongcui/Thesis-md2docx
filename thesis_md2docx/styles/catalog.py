@@ -48,6 +48,9 @@ class StyleRoleMap:
             raise KeyError(f"style role is not defined: {role}")
         return style_id
 
+    def missing_roles(self, required_roles: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(role for role in required_roles if role not in self.roles)
+
     def missing_styles(self, catalog: StyleCatalog) -> tuple[str, ...]:
         style_ids = catalog.style_ids()
         return tuple(sorted({style_id for style_id in self.roles.values() if style_id not in style_ids}))

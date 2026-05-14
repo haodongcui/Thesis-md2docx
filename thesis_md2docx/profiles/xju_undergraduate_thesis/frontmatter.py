@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from ...constants import (
@@ -28,6 +29,83 @@ from ...ooxml.render import (
 )
 from ...ooxml.xml import indent_xml, run_text_xml, spacing_xml
 from .styles import STYLE_BODY, STYLE_FRONT_HEADING
+
+
+@dataclass(frozen=True)
+class CoverFieldSpec:
+    source_key: str
+    label: str
+
+
+@dataclass(frozen=True)
+class CoverInfoRow:
+    label: str
+    value: str
+    draw_top_border: bool = True
+
+
+@dataclass(frozen=True)
+class TaskbookValueSpec:
+    name: str
+    taskbook_keys: tuple[str, ...] = ()
+    cover_keys: tuple[str, ...] = ()
+    default: str = ""
+
+    def resolve(self, task_info: dict[str, str], cover_info: dict[str, str]) -> str:
+        values = [task_info.get(key) for key in self.taskbook_keys]
+        values.extend(cover_info.get(key) for key in self.cover_keys)
+        return first_nonempty_value(*values, default=self.default)
+
+
+@dataclass(frozen=True)
+class DeclarationSignatureSpec:
+    author_label: str = "作者签名："
+    date_label: str = "签字日期："
+    signature_alt: str = "电子签名"
+    blank_count_without_image: int = 14
+    blank_count_with_image: int = 10
+
+    def blank_count(self, *, has_signature_image: bool) -> int:
+        return self.blank_count_with_image if has_signature_image else self.blank_count_without_image
+
+
+XJU_COVER_FIELDS: tuple[CoverFieldSpec, ...] = (
+    CoverFieldSpec("学生姓名", "学生姓名:"),
+    CoverFieldSpec("学号", "学    号:"),
+    CoverFieldSpec("所属院系", "所属院系:"),
+    CoverFieldSpec("专业", "专    业:"),
+    CoverFieldSpec("班级", "班    级:"),
+    CoverFieldSpec("指导教师", "指导老师:"),
+    CoverFieldSpec("日期", "日    期:"),
+)
+
+
+XJU_TASKBOOK_VALUES: tuple[TaskbookValueSpec, ...] = (
+    TaskbookValueSpec("college", taskbook_keys=("学院",), cover_keys=("所属院系",)),
+    TaskbookValueSpec("class_name", taskbook_keys=("班级",), cover_keys=("班级",)),
+    TaskbookValueSpec("student", taskbook_keys=("姓名",), cover_keys=("学生姓名",)),
+    TaskbookValueSpec(
+        "title",
+        taskbook_keys=("毕业论文（设计）题目", "论文题目"),
+        cover_keys=("论文题目",),
+    ),
+    TaskbookValueSpec("year", taskbook_keys=("届",), default="……"),
+    TaskbookValueSpec("start_date", taskbook_keys=("工作开始日期", "开始日期")),
+    TaskbookValueSpec("end_date", taskbook_keys=("工作结束日期", "结束日期")),
+    TaskbookValueSpec("purpose", taskbook_keys=("目的及意义", "题目的目的及意义")),
+    TaskbookValueSpec("tasks", taskbook_keys=("主要工作任务", "工作任务")),
+    TaskbookValueSpec("teacher", taskbook_keys=("指导教师",), cover_keys=("指导教师",)),
+    TaskbookValueSpec("office_head", taskbook_keys=("教研室（系）主任", "教研室主任")),
+    TaskbookValueSpec("student_signature", taskbook_keys=("学生签名",)),
+    TaskbookValueSpec("accepted_date", taskbook_keys=("接受任务日期", "接受日期")),
+)
+
+
+XJU_DECLARATION_SIGNATURE = DeclarationSignatureSpec()
+
+
+def resolve_taskbook_values(task_info: dict[str, str], cover_info: dict[str, str]) -> dict[str, str]:
+    return {spec.name: spec.resolve(task_info, cover_info) for spec in XJU_TASKBOOK_VALUES}
 
 
 def resolve_cover_assets_dir(markdown_path: Path, assets_dir: Path | None, *, use_cover_assets: bool) -> Path | None:
@@ -125,26 +203,17 @@ def cover_logo_table_xml(
 
 def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
     title_lines = split_cover_title_lines(title)
-    info_rows: list[tuple[str, str, bool]] = []
+    info_rows: list[CoverInfoRow] = []
 
     if title_lines:
-        info_rows.append(("论文题目:", title_lines[0], False))
+        info_rows.append(CoverInfoRow("论文题目:", title_lines[0], draw_top_border=False))
         for extra_line in title_lines[1:]:
-            info_rows.append(("", extra_line, True))
+            info_rows.append(CoverInfoRow("", extra_line))
 
-    ordered_fields = [
-        ("学生姓名", "学生姓名:"),
-        ("学号", "学    号:"),
-        ("所属院系", "所属院系:"),
-        ("专业", "专    业:"),
-        ("班级", "班    级:"),
-        ("指导教师", "指导老师:"),
-        ("日期", "日    期:"),
-    ]
-    for source_key, display_label in ordered_fields:
-        value = cover_info.get(source_key)
+    for field in XJU_COVER_FIELDS:
+        value = cover_info.get(field.source_key)
         if value:
-            info_rows.append((display_label, value, True))
+            info_rows.append(CoverInfoRow(field.label, value))
 
     tbl_pr = (
         "<w:tblPr>"
@@ -185,21 +254,21 @@ def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
     }
 
     rows_xml: list[str] = []
-    for idx, (label, value, draw_top) in enumerate(info_rows):
+    for idx, row in enumerate(info_rows):
         label_para = formatted_paragraph_xml(
-            label,
+            row.label,
             align="center",
             ppr_extra=spacing_xml(before=100, after=50, line=360),
             run_kwargs=label_run,
         )
         value_para = formatted_paragraph_xml(
-            value,
+            row.value,
             align="center",
             ppr_extra=spacing_xml(before=100, after=50, line=360),
             run_kwargs=value_run,
         )
         value_borders = ["<w:tcBorders>"]
-        if draw_top and idx > 0:
+        if row.draw_top_border and idx > 0:
             value_borders.append('<w:top w:val="single" w:color="auto" w:sz="4" w:space="0"/>')
         value_borders.append('<w:bottom w:val="single" w:color="auto" w:sz="4" w:space="0"/>')
         value_borders.append("</w:tcBorders>")
@@ -515,19 +584,7 @@ def taskbook_line_xml(runs: list[str], *, spacing: str | None = None, align: str
 
 def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> list[str]:
     task_info = parse_cover_info(taskbook_text)
-    college = first_nonempty_value(task_info.get("学院"), cover_info.get("所属院系"))
-    class_name = first_nonempty_value(task_info.get("班级"), cover_info.get("班级"))
-    student = first_nonempty_value(task_info.get("姓名"), cover_info.get("学生姓名"))
-    title = first_nonempty_value(task_info.get("毕业论文（设计）题目"), task_info.get("论文题目"), cover_info.get("论文题目"))
-    year = first_nonempty_value(task_info.get("届"), default="……")
-    start_date = first_nonempty_value(task_info.get("工作开始日期"), task_info.get("开始日期"))
-    end_date = first_nonempty_value(task_info.get("工作结束日期"), task_info.get("结束日期"))
-    purpose = first_nonempty_value(task_info.get("目的及意义"), task_info.get("题目的目的及意义"))
-    tasks = first_nonempty_value(task_info.get("主要工作任务"), task_info.get("工作任务"))
-    teacher = first_nonempty_value(task_info.get("指导教师"), cover_info.get("指导教师"))
-    office_head = first_nonempty_value(task_info.get("教研室（系）主任"), task_info.get("教研室主任"))
-    student_signature = first_nonempty_value(task_info.get("学生签名"))
-    accepted_date = first_nonempty_value(task_info.get("接受任务日期"), task_info.get("接受日期"))
+    values = resolve_taskbook_values(task_info, cover_info)
 
     body_run = taskbook_run_kwargs()
     title_run = taskbook_run_kwargs(bold=True, size=44)
@@ -544,7 +601,7 @@ def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> l
     )
     elements.append(
         formatted_paragraph_xml(
-            f"本科毕业论文（设计）任务书（{year}届）",
+            f"本科毕业论文（设计）任务书（{values['year']}届）",
             align="center",
             ppr_extra="",
             run_kwargs=title_run,
@@ -555,9 +612,9 @@ def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> l
         taskbook_line_xml(
             [
                 run_text_xml("学院：", **body_run),
-                taskbook_underlined_run(college, width=24),
+                taskbook_underlined_run(values["college"], width=24),
                 run_text_xml("  班级：", **body_run),
-                taskbook_underlined_run(class_name, width=22),
+                taskbook_underlined_run(values["class_name"], width=22),
             ]
         )
     )
@@ -565,7 +622,7 @@ def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> l
         taskbook_line_xml(
             [
                 run_text_xml("姓名：", **body_run),
-                taskbook_underlined_run(student, width=25),
+                taskbook_underlined_run(values["student"], width=25),
             ]
         )
     )
@@ -573,7 +630,7 @@ def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> l
         taskbook_line_xml(
             [
                 run_text_xml("毕业论文（设计）题目：", **body_run),
-                taskbook_underlined_run(title, width=35),
+                taskbook_underlined_run(values["title"], width=35),
             ]
         )
     )
@@ -581,40 +638,49 @@ def build_taskbook_elements(taskbook_text: str, cover_info: dict[str, str]) -> l
         taskbook_line_xml(
             [
                 run_text_xml("毕业设计(论文)工作自", **body_run),
-                taskbook_underlined_run(start_date, width=11),
+                taskbook_underlined_run(values["start_date"], width=11),
                 run_text_xml("起至", **body_run),
-                taskbook_underlined_run(end_date, width=11),
+                taskbook_underlined_run(values["end_date"], width=11),
                 run_text_xml("止", **body_run),
             ]
         )
     )
     elements.append(formatted_paragraph_xml("毕业设计(论文)题目的目的及意义", ppr_extra="", run_kwargs=body_run))
-    purpose_line_count = 3 if purpose else 6
-    for line in wrap_taskbook_text(purpose, max_lines=purpose_line_count):
+    purpose_line_count = 3 if values["purpose"] else 6
+    for line in wrap_taskbook_text(values["purpose"], max_lines=purpose_line_count):
         elements.append(taskbook_line_xml([taskbook_underlined_run(line, width=70)]))
     elements.append(formatted_paragraph_xml("毕业设计(论文)的主要工作任务", ppr_extra="", run_kwargs=body_run))
-    task_line_count = 4 if tasks else 6
-    for line in wrap_taskbook_text(tasks, max_lines=task_line_count):
+    task_line_count = 4 if values["tasks"] else 6
+    for line in wrap_taskbook_text(values["tasks"], max_lines=task_line_count):
         elements.append(taskbook_line_xml([taskbook_underlined_run(line, width=70)]))
     elements.append(paragraph_xml("", ppr_extra=spacing_xml(line=360)))
     elements.append(
         taskbook_line_xml(
-            [run_text_xml("指   导   教  师：", **body_run), taskbook_underlined_run(teacher, width=52)]
+            [run_text_xml("指   导   教  师：", **body_run), taskbook_underlined_run(values["teacher"], width=52)]
         )
     )
     elements.append(
         taskbook_line_xml(
-            [run_text_xml("教研室（系）主任：", **body_run), taskbook_underlined_run(office_head, width=52)]
+            [
+                run_text_xml("教研室（系）主任：", **body_run),
+                taskbook_underlined_run(values["office_head"], width=52),
+            ]
         )
     )
     elements.append(
         taskbook_line_xml(
-            [run_text_xml("学   生   签  名：", **body_run), taskbook_underlined_run(student_signature, width=52)]
+            [
+                run_text_xml("学   生   签  名：", **body_run),
+                taskbook_underlined_run(values["student_signature"], width=52),
+            ]
         )
     )
     elements.append(
         taskbook_line_xml(
-            [run_text_xml("接受毕业论文(设计)任务日期：", **body_run), taskbook_underlined_run(accepted_date, width=39)]
+            [
+                run_text_xml("接受毕业论文(设计)任务日期：", **body_run),
+                taskbook_underlined_run(values["accepted_date"], width=39),
+            ]
         )
     )
     elements.append(formatted_paragraph_xml("（注：本任务书由指导教师填写）", ppr_extra="", run_kwargs=note_run))

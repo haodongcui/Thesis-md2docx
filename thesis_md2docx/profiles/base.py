@@ -4,7 +4,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..body_rules import BodyParseRules
-from ..layout import DocumentLayout, DocxPackageParts, FrontMatterSpec, SectionSpec, StyleBundle
+from ..layout import (
+    DocumentLayout,
+    DocxPackageParts,
+    FrontMatterPageSpec,
+    FrontMatterPlan,
+    FrontMatterSpec,
+    SectionSpec,
+    StyleBundle,
+)
 from ..math.converter import MathConverter
 from ..media import MediaManager
 from ..ooxml.parts import (
@@ -15,7 +23,7 @@ from ..ooxml.parts import (
     document_xml,
     rels_xml,
 )
-from ..styles import StyleCatalog, StyleRoleMap
+from ..styles import COMMON_THESIS_STYLE_ROLES, BodyRenderProfile, StyleCatalog, StyleRoleMap
 
 
 @dataclass(frozen=True)
@@ -39,8 +47,8 @@ class ThesisProfile:
             return self.default_cover_assets_dir
         return None
 
-    def body_style_profile(self) -> dict[str, object]:
-        return {}
+    def body_style_profile(self) -> BodyRenderProfile:
+        return BodyRenderProfile()
 
     def body_parse_rules(self) -> BodyParseRules:
         return BodyParseRules()
@@ -54,11 +62,54 @@ class ThesisProfile:
     def front_matter_spec(self) -> FrontMatterSpec:
         raise NotImplementedError(f"{self.name} profile must implement front_matter_spec()")
 
+    def front_matter_plan(self) -> FrontMatterPlan:
+        spec = self.front_matter_spec()
+        pages: list[FrontMatterPageSpec] = [
+            FrontMatterPageSpec(kind="cover", source_key=spec.cover_info_key),
+        ]
+        if spec.declaration_key:
+            pages.append(
+                FrontMatterPageSpec(
+                    kind="declaration",
+                    source_key=spec.declaration_key,
+                    title=spec.declaration_title,
+                    page_break_after=True,
+                )
+            )
+        if spec.taskbook_key:
+            pages.append(FrontMatterPageSpec(kind="taskbook", source_key=spec.taskbook_key))
+        if spec.cn_abstract_key:
+            pages.append(
+                FrontMatterPageSpec(
+                    kind="abstract",
+                    source_key=spec.cn_abstract_key,
+                    title=spec.cn_abstract_title,
+                    keyword_prefix=spec.cn_keyword_prefix,
+                    page_break_after=True,
+                )
+            )
+        if spec.en_abstract_key:
+            pages.append(
+                FrontMatterPageSpec(
+                    kind="abstract",
+                    source_key=spec.en_abstract_key,
+                    title=spec.en_abstract_title,
+                    keyword_prefix=spec.en_keyword_prefix,
+                    english=True,
+                    page_break_after=True,
+                )
+            )
+        pages.append(FrontMatterPageSpec(kind="toc", title=spec.toc_title))
+        return FrontMatterPlan(tuple(pages))
+
     def style_catalog(self) -> StyleCatalog:
         return StyleCatalog()
 
     def style_roles(self) -> StyleRoleMap:
         return StyleRoleMap()
+
+    def required_style_roles(self) -> tuple[str, ...]:
+        return COMMON_THESIS_STYLE_ROLES
 
     def style_bundle(self) -> StyleBundle:
         raise NotImplementedError(f"{self.name} profile must implement style_bundle()")

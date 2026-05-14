@@ -14,6 +14,7 @@ from ...ooxml.render import (
 )
 from ...ooxml.tables import table_xml
 from ...ooxml.xml import indent_xml, run_text_xml, spacing_xml
+from ...styles import BodyRenderProfile, BodyStyleRefs, ParagraphFormatSpec, RunFormatSpec, StyleRole
 from .styles import STYLE_REFERENCE, xju_style_roles
 
 
@@ -72,27 +73,27 @@ def strip_heading_prefix(text: str) -> str:
 def heading_paragraph_xml(
     text: str,
     level: int,
-    profile: dict[str, object],
+    profile: BodyRenderProfile,
     *,
     numbered: bool = True,
     keep_with_next: bool = True,
 ) -> str:
     if level == 1:
-        style = profile.get("heading1")
+        style = profile.styles.heading1
     elif level == 2:
-        style = profile.get("heading2")
+        style = profile.styles.heading2
     else:
-        style = profile.get("heading3")
+        style = profile.styles.heading3
 
     if numbered:
-        heading_text = strip_heading_prefix(text) if profile.get("strip_heading_numbers") else text.strip()
+        heading_text = strip_heading_prefix(text) if profile.strip_heading_numbers else text.strip()
         if level == 2:
             ppr_extra = (
                 ("<w:keepNext/><w:keepLines/>" if keep_with_next else "")
                 + spacing_xml(before=240, after=120, line=360)
                 + indent_xml(left=0, first_line=0)
             )
-            return paragraph_xml(heading_text, style=str(style) if style else None, align="left", ppr_extra=ppr_extra)
+            return paragraph_xml(heading_text, style=style, align="left", ppr_extra=ppr_extra)
         if level == 1:
             ppr_extra = spacing_xml(before_lines=80, before=0, line=240) + indent_xml(left=0, first_line=0)
         else:
@@ -101,8 +102,8 @@ def heading_paragraph_xml(
                 + spacing_xml(before=120, line=360)
                 + indent_xml(left=0, first_line_chars=200, first_line=560)
             )
-            return paragraph_xml(heading_text, style=str(style) if style else None, align="left", ppr_extra=ppr_extra)
-        return paragraph_xml(heading_text, style=str(style) if style else None, ppr_extra=ppr_extra)
+            return paragraph_xml(heading_text, style=style, align="left", ppr_extra=ppr_extra)
+        return paragraph_xml(heading_text, style=style, ppr_extra=ppr_extra)
 
     ppr_extra = '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="0"/></w:numPr>'
     if level == 1:
@@ -113,18 +114,18 @@ def heading_paragraph_xml(
             + spacing_xml(before=120, line=360)
             + indent_xml(left=0, first_line_chars=200, first_line=560)
         )
-        return paragraph_xml(text.strip(), style=str(style) if style else None, align="left", ppr_extra=ppr_extra)
-    return paragraph_xml(text.strip(), style=str(style) if style else None, ppr_extra=ppr_extra)
+        return paragraph_xml(text.strip(), style=style, align="left", ppr_extra=ppr_extra)
+    return paragraph_xml(text.strip(), style=style, ppr_extra=ppr_extra)
 
 
-def acknowledgement_heading_paragraph_xml(text: str, profile: dict[str, object]) -> str:
-    style = profile.get("heading1")
+def acknowledgement_heading_paragraph_xml(text: str, profile: BodyRenderProfile) -> str:
+    style = profile.styles.heading1
     ppr_extra = (
         '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="0"/></w:numPr>'
         '<w:snapToGrid w:val="0"/>'
         + spacing_xml(before_lines=0, before=0, after_lines=200, after=480, line=240)
     )
-    return paragraph_xml(text.strip(), style=str(style) if style else None, ppr_extra=ppr_extra)
+    return paragraph_xml(text.strip(), style=style, ppr_extra=ppr_extra)
 
 
 def caption_paragraph_xml(
@@ -191,36 +192,40 @@ def reference_paragraph_xml(text: str, reference_anchors: dict[str, str] | None 
     )
 
 
-def body_style_profile() -> dict[str, object]:
+def body_style_profile() -> BodyRenderProfile:
     styles = xju_style_roles()
-    return {
-        "title": styles.require("body.title"),
-        "heading1": styles.require("body.heading.level1"),
-        "heading2": styles.require("body.heading.level2"),
-        "heading3": styles.require("body.heading.level3"),
-        "normal": styles.require("body.normal"),
-        "quote": styles.require("quote.block"),
-        "code": styles.require("code.block"),
-        "code_ppr_extra": '<w:outlineLvl w:val="9"/>',
-        "math": styles.require("math.block"),
-        "table": styles.require("table.cell"),
-        "normal_first_line_chars": 200,
-        "normal_first_line": 480,
-        "normal_ppr_extra": '<w:widowControl w:val="0"/>' + spacing_xml(line=360),
-        "normal_run": {
-            "font_ascii": "Times New Roman",
-            "font_hansi": "Times New Roman",
-            "font_eastasia": "宋体",
-            "size": 24,
-        },
-        "caption": styles.require("caption.default"),
-        "strip_heading_numbers": True,
-        "heading_builder": heading_paragraph_xml,
-        "acknowledgement_heading_builder": acknowledgement_heading_paragraph_xml,
-        "caption_builder": caption_paragraph_xml,
-        "reference_builder": reference_paragraph_xml,
-        "table_builder": table_xml,
-        "appendix_heading_normalizer": normalize_appendix_heading,
-        "appendix_reference_normalizer": normalize_appendix_references,
-        "section_pr_builder": native_sect_pr_xml,
-    }
+    return BodyRenderProfile(
+        styles=BodyStyleRefs(
+            title=styles.require(StyleRole.BODY_TITLE),
+            heading1=styles.require(StyleRole.BODY_HEADING_LEVEL1),
+            heading2=styles.require(StyleRole.BODY_HEADING_LEVEL2),
+            heading3=styles.require(StyleRole.BODY_HEADING_LEVEL3),
+            normal=styles.require(StyleRole.BODY_NORMAL),
+            quote=styles.require(StyleRole.QUOTE_BLOCK),
+            code=styles.require(StyleRole.CODE_BLOCK),
+            math=styles.require(StyleRole.MATH_BLOCK),
+            table_cell=styles.require(StyleRole.TABLE_CELL),
+            caption=styles.require(StyleRole.CAPTION_DEFAULT),
+        ),
+        normal_paragraph=ParagraphFormatSpec(
+            ppr_extra='<w:widowControl w:val="0"/>' + spacing_xml(line=360),
+            first_line_chars=200,
+            first_line=480,
+        ),
+        normal_run=RunFormatSpec(
+            font_ascii="Times New Roman",
+            font_hansi="Times New Roman",
+            font_eastasia="宋体",
+            size=24,
+        ),
+        code_paragraph=ParagraphFormatSpec(ppr_extra='<w:outlineLvl w:val="9"/>'),
+        strip_heading_numbers=True,
+        heading_builder=heading_paragraph_xml,
+        acknowledgement_heading_builder=acknowledgement_heading_paragraph_xml,
+        caption_builder=caption_paragraph_xml,
+        reference_builder=reference_paragraph_xml,
+        table_builder=table_xml,
+        appendix_heading_normalizer=normalize_appendix_heading,
+        appendix_reference_normalizer=normalize_appendix_references,
+        section_pr_builder=native_sect_pr_xml,
+    )

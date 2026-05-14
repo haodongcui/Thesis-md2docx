@@ -228,13 +228,23 @@ Markdown
   -> optional PDF backend
 ```
 
+样式和正文渲染按三层组织：
+
+- `StyleCatalog`：声明 Word 样式本身。
+- `StyleRoleMap`：声明语义角色到样式 ID 的映射。
+- `StyleRole`：提供公共语义角色常量和默认论文必需角色清单。
+- `FrontMatterPlan`：声明封面、声明、任务书、摘要、目录等前置页顺序和分页行为。
+- `styles.properties`：提供字体、字号、间距、缩进、编号、制表位等 OOXML 样式属性 helper。
+- `NumberingCatalog` / `FontTableSpec`：结构化声明标题编号和字体表。
+- `BodyRenderProfile`：绑定正文样式引用、段落参数、字符参数和复杂渲染 hook。
+
 内置 XJU profile 主要由这些文件组成：
 
 ```text
 thesis_md2docx/profiles/xju_undergraduate_thesis/
 ├── profile.py          # profile 入口和对外能力
 ├── document.py         # 封面、声明、摘要、目录、正文的装配顺序
-├── frontmatter.py      # XJU 封面、任务书、摘要、声明等前置页渲染
+├── frontmatter.py      # XJU 前置页字段 spec 和封面/任务书/摘要/声明渲染
 ├── body.py             # 正文标题、参考文献、图表题、附录等规则
 ├── styles.py           # Word 样式目录、样式角色、numbering/font table
 ├── header_footer.py    # XJU 页眉页脚
@@ -295,13 +305,22 @@ Thesis-md2docx/
 
 ## 开发
 
+建议安装开发依赖：
+
+```bash
+python3 -m pip install -e ".[dev]"
+```
+
 提交改动前建议运行：
 
 ```bash
-python3 -m py_compile md2docx.py $(find thesis_md2docx -name '*.py' -type f | sort)
+python3 -m py_compile md2docx.py $(find thesis_md2docx tests -name '*.py' -type f | sort)
+python3 -m pytest tests
 python3 md2docx.py doctor
 python3 md2docx.py docx example/thesis-demo.md /tmp/thesis-demo.docx --profile xju-undergraduate-thesis
 ```
+
+`tests/test_docx_golden.py` 会对示例 DOCX 的稳定 OOXML 部件做 hash 回归检查，用来防止格式在重构中被意外改坏。
 
 如果修改了 PDF 后端，再按需运行：
 

@@ -9,7 +9,7 @@ from ...layout import DocumentLayout, FrontMatterSpec, SectionSpec, StyleBundle
 from ...math.converter import MathConverter
 from ...media import MediaManager
 from ...ooxml.parts import native_sect_pr_xml
-from ...styles import StyleCatalog, StyleRoleMap
+from ...styles import BodyRenderProfile, StyleCatalog, StyleRoleMap
 from ..base import ThesisProfile
 from .body import body_parse_rules, body_style_profile
 from .document import build_document as build_profile_document
@@ -36,7 +36,7 @@ class XjuUndergraduateThesisProfile(ThesisProfile):
             use_cover_assets=use_cover_assets,
         )
 
-    def body_style_profile(self) -> dict[str, object]:
+    def body_style_profile(self) -> BodyRenderProfile:
         return body_style_profile()
 
     def body_parse_rules(self) -> BodyParseRules:

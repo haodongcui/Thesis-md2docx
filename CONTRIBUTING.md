@@ -11,10 +11,17 @@
 
 ## 本地检查
 
+建议先安装开发依赖：
+
+```bash
+python3 -m pip install -e ".[dev]"
+```
+
 提交前建议至少运行：
 
 ```bash
-python3 -m py_compile md2docx.py $(find thesis_md2docx -name '*.py' -type f | sort)
+python3 -m py_compile md2docx.py $(find thesis_md2docx tests -name '*.py' -type f | sort)
+python3 -m pytest tests
 ./export-example.sh
 python3 md2docx.py doctor --backend auto
 ```
@@ -57,3 +64,5 @@ python3 md2docx.py pdf example/thesis-demo.generated.docx example/thesis-demo.ge
 - 对应的学校规范或范例位置；
 - 导出后的检查方式；
 - 是否会影响已有 Markdown 写法。
+
+`tests/test_docx_golden.py` 会检查示例 DOCX 的稳定 OOXML 部件 hash。若确实有意调整版式，需要同步更新该测试中的 hash，并在提交说明中写清楚变更原因。
