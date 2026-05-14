@@ -1,0 +1,8 @@
+interface:
+  display_name: "Thesis MD2DOCX"
+  short_description: "Export thesis Markdown to DOCX/PDF"
+  brand_color: "#2563EB"
+  default_prompt: "Use $thesis-md2docx to check and export my thesis Markdown to DOCX/PDF."
+
+policy:
+  allow_implicit_invocation: true

@@ -3,19 +3,19 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xju-thesis-md2docx"
+name = "thesis-md2docx"
 version = "0.1.0"
-description = "Profile-based Markdown to DOCX/PDF helper for Xinjiang University undergraduate theses."
+description = "Profile-based Markdown to DOCX/PDF helper for thesis writing."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "xju-thesis-md2docx contributors" }
+  { name = "thesis-md2docx contributors" }
 ]
 dependencies = [
   "Pillow>=9.0"
 ]
-keywords = ["markdown", "docx", "thesis", "xinjiang-university", "ooxml"]
+keywords = ["markdown", "docx", "pdf", "thesis", "ooxml", "xinjiang-university"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -29,8 +29,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/haodongcui/xju-thesis-md2docx"
-Repository = "https://github.com/haodongcui/xju-thesis-md2docx"
+Homepage = "https://github.com/haodongcui/Thesis-md2docx"
+Repository = "https://github.com/haodongcui/Thesis-md2docx"
 
 [project.scripts]
 md2docx = "thesis_md2docx.main:main"

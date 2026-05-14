@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 `xju-thesis-md2docx`。本项目的目标是把新疆大学本科毕业论文（设计）Markdown 主稿稳定导出为符合学校格式要求的 DOCX，并提供可检查的 PDF 预览流程。
+感谢关注 `thesis-md2docx`。本项目的目标是把毕业论文 Markdown 主稿稳定导出为符合学校格式要求的 DOCX，并提供可检查的 PDF 预览流程。当前内置 `xju-undergraduate-thesis` profile，用于新疆大学本科毕业论文（设计）。
 
 ## 基本原则
 
