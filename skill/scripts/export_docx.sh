@@ -21,11 +21,18 @@ fi
 
 INPUT="$1"
 shift
+if [[ "$INPUT" != /* ]]; then
+  INPUT="$PWD/$INPUT"
+fi
 
 ARGS=(docx "$INPUT")
 
 if [ "$#" -gt 0 ] && [[ "$1" != --* ]]; then
-  ARGS+=("$1")
+  OUTPUT="$1"
+  if [[ "$OUTPUT" != /* ]]; then
+    OUTPUT="$PWD/$OUTPUT"
+  fi
+  ARGS+=("$OUTPUT")
   shift
 fi
 

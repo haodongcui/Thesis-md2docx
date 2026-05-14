@@ -22,6 +22,12 @@ fi
 INPUT="$1"
 OUTPUT="$2"
 shift 2
+if [[ "$INPUT" != /* ]]; then
+  INPUT="$PWD/$INPUT"
+fi
+if [[ "$OUTPUT" != /* ]]; then
+  OUTPUT="$PWD/$OUTPUT"
+fi
 
 BACKEND="${1:-${THESIS_DOCX2PDF_BACKEND:-word}}"
 if [ "$#" -gt 0 ]; then
