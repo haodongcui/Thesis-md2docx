@@ -50,4 +50,7 @@ thesis_md2docx = [
   "math/latex2omml_node/package-lock.json",
   "pdf/backends/word/*.vbs",
   "pdf/backends/libreoffice/*.xba",
+  "profiles/xju_undergraduate_thesis/format_requirements/*.md",
+  "profiles/xju_undergraduate_thesis/format_requirements/*.docx",
+  "profiles/xju_undergraduate_thesis/format_requirements/*.pdf",
 ]

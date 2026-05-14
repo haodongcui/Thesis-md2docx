@@ -251,6 +251,7 @@ Thesis-md2docx/
 ├── export-example.cmd          # Windows cmd 一键导出示例
 ├── thesis_md2docx/             # Markdown -> DOCX/PDF 核心代码
 │   ├── profiles/               # 学校/格式 profile
+│   │   └── xju_undergraduate_thesis/format_requirements/
 │   ├── pdf/                    # DOCX -> PDF 后端
 │   ├── math/                   # LaTeX -> OMML 公式转换
 │   ├── builders/               # 文档结构构建
