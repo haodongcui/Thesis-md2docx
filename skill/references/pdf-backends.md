@@ -44,6 +44,6 @@ py -3 md2docx.py pdf thesis.docx thesis.pdf --backend word
 Use `pdftoppm` to render PDF pages into PNG for visual checking:
 
 ```bash
-mkdir -p preview/thesis
-pdftoppm -png -f 1 -l 6 -r 120 thesis.pdf preview/thesis/page
+mkdir -p pages
+pdftoppm -png -f 1 -l 6 -r 120 thesis.pdf pages/page
 ```

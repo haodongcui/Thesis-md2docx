@@ -70,6 +70,6 @@ git clone https://github.com/haodongcui/Thesis-md2docx.git
 
 - Do not hand-edit generated DOCX as the long-term source.
 - Fix Markdown, profile code, or exporter code instead.
-- Keep generated `*.generated.docx`, `*.generated.pdf`, and preview images out of Git.
+- Keep generated DOCX/PDF files and preview images out of Git; for a single paper, prefer sibling files such as `thesis.md`, `thesis.docx`, `thesis.pdf`, with PDF page images in `pages/`.
 - For Xinjiang University undergraduate thesis output, use profile `xju-undergraduate-thesis`.
 - When comparing output, focus first on page sections, headings, body indentation, captions, formulas, references, and PDF pagination.

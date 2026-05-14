@@ -67,14 +67,14 @@ md2docx doctor
 
 ```bash
 python3 md2docx.py doctor
-python3 md2docx.py docx example/thesis-demo.md example/thesis-demo.generated.docx --profile xju-undergraduate-thesis
+python3 md2docx.py docx example/thesis-demo.md example/thesis-demo.docx --profile xju-undergraduate-thesis
 ```
 
 Windows 如果 `python` 命令不可用，可以改用：
 
 ```powershell
 py -3 md2docx.py doctor
-py -3 md2docx.py docx example\thesis-demo.md example\thesis-demo.generated.docx --profile xju-undergraduate-thesis
+py -3 md2docx.py docx example\thesis-demo.md example\thesis-demo.docx --profile xju-undergraduate-thesis
 ```
 
 一键导出示例：
@@ -84,6 +84,25 @@ py -3 md2docx.py docx example\thesis-demo.md example\thesis-demo.generated.docx 
 ```
 
 Windows 对应 `export-example.ps1` 或 `export-example.cmd`。
+
+## 输出文件约定
+
+CLI 不强制输出目录。输出路径由命令参数决定；不传输出路径时，默认在 Markdown 同目录生成同名 `.docx`。
+
+单篇论文或示例推荐保持扁平：
+
+```text
+paper/
+├── thesis.md       # Markdown 源稿
+├── thesis.docx     # 生成的 Word 文档
+├── thesis.pdf      # 生成的 PDF
+├── img/            # 图片资源
+└── pages/          # PDF 分页图片
+```
+
+示例目录也采用这个约定：`example/thesis-demo.md` 是源稿，`example/thesis-demo.docx` 和 `example/thesis-demo.pdf` 是导出产物，`example/pages/` 可放 PDF 分页图片。
+
+如果同一篇论文需要保留多个版本、多个后端 PDF 或大量中间产物，也可以自行改成 `word/`、`pdf/` 等子目录；工具本身不限制。
 
 ## 常用命令
 

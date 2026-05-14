@@ -17,7 +17,7 @@ fi
 
 "$PYTHON" md2docx.py docx \
   example/thesis-demo.md \
-  example/thesis-demo.generated.docx \
+  example/thesis-demo.docx \
   --profile xju-undergraduate-thesis
 
-echo "Generated: $ROOT/example/thesis-demo.generated.docx"
+echo "Generated: $ROOT/example/thesis-demo.docx"

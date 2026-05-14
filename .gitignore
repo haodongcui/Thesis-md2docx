@@ -3,8 +3,9 @@ __pycache__/
 .DS_Store
 
 thesis_md2docx/math/latex2omml_node/node_modules/
-example/*.generated.docx
-example/*.generated.pdf
+example/*.docx
+example/*.pdf
+example/pages/*.png
 example/preview/
 .env
 

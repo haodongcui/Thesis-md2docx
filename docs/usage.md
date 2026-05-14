@@ -2,6 +2,21 @@
 
 本文档说明 Markdown 源稿应该怎样组织，以及常见论文元素应该怎样写。建议先复制 `example/thesis-demo.md`，再逐步替换为自己的论文内容。
 
+## 输出文件建议
+
+CLI 不强制输出目录。单篇论文或示例建议让 Markdown、DOCX 和 PDF 同名同目录，资源和预览图放子目录：
+
+```text
+paper/
+├── thesis.md
+├── thesis.docx
+├── thesis.pdf
+├── img/
+└── pages/
+```
+
+Markdown 和 `img/` 是源文件；DOCX、PDF 和 `pages/` 是导出产物。示例目录也按这个约定组织。
+
 ## 基本结构
 
 开始写作前建议先检查环境：

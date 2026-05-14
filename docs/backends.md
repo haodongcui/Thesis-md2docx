@@ -151,8 +151,8 @@ export THESIS_LIBREOFFICE_BIN=/path/to/soffice
 如果需要让 AI 或人工逐页检查版式，可以用 `pdftoppm` 把 PDF 渲染成 PNG：
 
 ```bash
-mkdir -p preview/thesis
-pdftoppm -png -f 1 -l 6 -r 120 thesis.pdf preview/thesis/page
+mkdir -p pages
+pdftoppm -png -f 1 -l 6 -r 120 thesis.pdf pages/page
 ```
 
 Ubuntu / Debian：
