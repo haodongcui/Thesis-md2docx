@@ -25,7 +25,7 @@ git clone https://github.com/haodongcui/Thesis-md2docx.git
 cd Thesis-md2docx
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 Windows PowerShell：
@@ -35,7 +35,7 @@ git clone https://github.com/haodongcui/Thesis-md2docx.git
 cd Thesis-md2docx
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 Conda 可选，项目依赖仍用 `pip`：
@@ -43,7 +43,7 @@ Conda 可选，项目依赖仍用 `pip`：
 ```bash
 conda create -n thesis-md2docx python=3.10
 conda activate thesis-md2docx
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 公式依赖可选；有公式时建议安装。先安装 Node.js 和 npm，再运行：
@@ -54,27 +54,20 @@ npm install --prefix thesis_md2docx/math/latex2omml_node
 
 不安装也能导出，公式会以 LaTeX 文本写入 DOCX。
 
-可编辑安装：
-
-```bash
-python -m pip install -e .
-md2docx doctor
-```
-
 ## 快速开始
 
 通用入口：
 
 ```bash
-python3 md2docx.py doctor
-python3 md2docx.py docx example/thesis-demo.md example/output/thesis-demo.docx --profile xju-undergraduate-thesis
+md2docx check
+md2docx example/thesis-demo.md --out example/output
 ```
 
-Windows 如果 `python` 命令不可用，可以改用：
+如果没有安装命令入口，也可以从仓库根目录直接运行：
 
-```powershell
-py -3 md2docx.py doctor
-py -3 md2docx.py docx example\thesis-demo.md example\output\thesis-demo.docx --profile xju-undergraduate-thesis
+```bash
+python3 md2docx.py check
+python3 md2docx.py example/thesis-demo.md --out example/output
 ```
 
 一键导出示例：
@@ -106,7 +99,7 @@ THESIS_DOCX2PDF_BACKEND=libreoffice ./export-example.sh
 
 ## 输出文件约定
 
-CLI 不强制输出目录。输出路径由命令参数决定；不传输出路径时，默认在 Markdown 同目录生成同名 `.docx`。
+直接导出模式的 `--out` 表示输出目录；不传 `--out` 时，默认写入 Markdown 同级的 `output/` 目录。
 
 推荐源稿和输出分开：
 
@@ -128,27 +121,29 @@ paper/
 
 ```bash
 # 检查环境
-python3 md2docx.py doctor
+md2docx check
 
 # 生成 DOCX
-python3 md2docx.py docx thesis.md thesis.docx --profile xju-undergraduate-thesis
+md2docx thesis.md
 
-# 生成 DOCX；不传输出路径时默认生成同名 .docx
-python3 md2docx.py docx thesis.md --profile xju-undergraduate-thesis
+# 生成 DOCX 和 PDF
+md2docx thesis.md --pdf
 
-# DOCX 转 PDF
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
+# 生成 DOCX、PDF 和 PDF 分页图片
+md2docx thesis.md --pdf --pages
 
-# 从 Markdown 一步生成 DOCX 和 PDF
-python3 md2docx.py all thesis.md thesis.docx thesis.pdf --profile xju-undergraduate-thesis --backend auto
+# 指定输出目录和 PDF 后端
+md2docx thesis.md --pdf --pages --out output --backend auto
+
+# 高级用法：只把已有 DOCX 转 PDF
+md2docx pdf thesis.docx thesis.pdf --backend word
 
 # 查看可用格式和 PDF 后端
-python3 md2docx.py list-profiles
-python3 md2docx.py list-backends
+md2docx profiles
+md2docx backends
 ```
 
-可编辑安装后，也可以直接使用 `md2docx ...`。
+默认 profile 是 `xju-undergraduate-thesis`。切换其他格式时加 `--profile <profile-name>`。
 
 ## Markdown 写法
 
@@ -218,8 +213,8 @@ KEY WORDS: Keyword one; Keyword two; Keyword three
 DOCX 转 PDF：
 
 ```bash
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
+md2docx thesis.md --pdf --out output --backend word
+md2docx thesis.md --pdf --out output --backend libreoffice
 ```
 
 后端：
@@ -355,8 +350,8 @@ python3 -m pip install -e ".[dev]"
 ```bash
 python3 -m py_compile md2docx.py $(find thesis_md2docx tests -name '*.py' -type f | sort)
 python3 -m pytest tests
-python3 md2docx.py doctor
-python3 md2docx.py docx example/thesis-demo.md /tmp/thesis-demo.docx --profile xju-undergraduate-thesis
+md2docx check
+md2docx example/thesis-demo.md --out /tmp/thesis-demo
 ```
 
 `tests/test_docx_golden.py` 会对示例 DOCX 的稳定 OOXML 部件做 hash 回归检查，用来防止格式在重构中被意外改坏。
@@ -364,8 +359,8 @@ python3 md2docx.py docx example/thesis-demo.md /tmp/thesis-demo.docx --profile x
 如果修改了 PDF 后端，再按需运行：
 
 ```bash
-python3 md2docx.py doctor --backend word
-python3 md2docx.py doctor --backend libreoffice
+md2docx check --backend word
+md2docx check --backend libreoffice
 ```
 
 ## License

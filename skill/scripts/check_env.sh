@@ -24,4 +24,4 @@ else
   PYTHON="python"
 fi
 
-exec "$PYTHON" md2docx.py doctor "$@"
+exec "$PYTHON" md2docx.py check "$@"

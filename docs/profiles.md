@@ -208,7 +208,7 @@ StyleSpec(
 
 如果某个学校模板需要非常特殊的 Word 属性，仍可在 `style_props(...)` 里临时保留原始 XML 字符串。这样能兼顾结构化和复杂模板的逃生口。
 
-`md2docx doctor` 会校验默认 profile 的样式目录和角色映射，能提前发现：
+`md2docx check` 会校验默认 profile 的样式目录和角色映射，能提前发现：
 
 - 前置页 plan 缺少封面、目录或必要 source key；
 - 重复的 style id；
@@ -313,7 +313,7 @@ cover -> declaration -> taskbook -> cn abstract -> en abstract -> toc
 - [ ] 原始规范和范例已保存到 `format_requirements/`。
 - [ ] 已拆分明示规则和范例反推规则。
 - [ ] 已确定 profile 名称，例如 `<school>-<degree>-thesis`。
-- [ ] 已注册 profile，并能通过 `md2docx.py list-profiles` 看到。
+- [ ] 已注册 profile，并能通过 `md2docx profiles` 看到。
 - [ ] 已定义 `front_matter_spec()` 和 `front_matter_plan()`。
 - [ ] 已实现封面、声明、摘要、目录等前置页。
 - [ ] 已实现正文标题、参考文献、致谢、附录规则。

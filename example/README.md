@@ -52,19 +52,19 @@ THESIS_DOCX2PDF_BACKEND=libreoffice ./export-example.sh
 如果当前环境是 WSL，且 Windows 侧安装了 Microsoft Word，可以继续用高保真 Word 后端导出 PDF：
 
 ```bash
-python3 md2docx.py pdf example/output/thesis-demo.docx example/output/thesis-demo.pdf --backend word
+md2docx example/thesis-demo.md --pdf --out example/output --backend word
 ```
 
 如果没有 Word，也可以使用 LibreOffice 后端做快速预览：
 
 ```bash
-python3 md2docx.py pdf example/output/thesis-demo.docx example/output/thesis-demo.pdf --backend libreoffice
+md2docx example/thesis-demo.md --pdf --out example/output --backend libreoffice
 ```
 
-也可以一步生成 DOCX 和 PDF：
+也可以一次生成 DOCX、PDF 和分页图片：
 
 ```bash
-python3 md2docx.py all example/thesis-demo.md example/output/thesis-demo.docx example/output/thesis-demo.pdf --profile xju-undergraduate-thesis --backend auto
+md2docx example/thesis-demo.md --pdf --pages --out example/output --backend auto
 ```
 
 PDF 生成后，也可以手动重新渲染分页图片到 `output/pages/`：

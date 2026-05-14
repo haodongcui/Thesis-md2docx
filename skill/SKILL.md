@@ -48,13 +48,13 @@ git clone https://github.com/haodongcui/Thesis-md2docx.git
 5. Export DOCX:
 
    ```bash
-   bash scripts/export_docx.sh thesis.md thesis.docx
+   md2docx thesis.md --out output --profile xju-undergraduate-thesis
    ```
 
-6. Export PDF when layout preview is needed:
+6. Export PDF and page images when layout preview is needed:
 
    ```bash
-   bash scripts/export_pdf.sh thesis.docx thesis.pdf word
+   md2docx thesis.md --pdf --pages --out output --profile xju-undergraduate-thesis --backend auto
    ```
 
 7. For the repository example, `./export-example.sh` / `.ps1` / `.cmd` should produce `example/output/thesis-demo.docx`, `example/output/thesis-demo.pdf`, and `example/output/pages/page-*.png`.

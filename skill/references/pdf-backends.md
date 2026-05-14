@@ -13,16 +13,16 @@ DOCX generation does not require a PDF backend. PDF export is for layout preview
 ## Commands
 
 ```bash
-python3 md2docx.py doctor --backend auto
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
-python3 md2docx.py all thesis.md thesis.docx thesis.pdf --profile xju-undergraduate-thesis --backend auto
+md2docx check --backend auto
+md2docx thesis.md --pdf --out output --backend word
+md2docx thesis.md --pdf --out output --backend libreoffice
+md2docx thesis.md --pdf --pages --out output --backend auto
 ```
 
 Windows can use:
 
 ```powershell
-py -3 md2docx.py pdf thesis.docx thesis.pdf --backend word
+md2docx thesis.md --pdf --out output --backend word
 ```
 
 ## Word Backend

@@ -21,28 +21,28 @@
 检查核心环境：
 
 ```bash
-python3 md2docx.py doctor
+md2docx check
 ```
 
 检查 PDF 后端：
 
 ```bash
-python3 md2docx.py doctor --backend auto
-python3 md2docx.py doctor --backend word
-python3 md2docx.py doctor --backend libreoffice
+md2docx check --backend auto
+md2docx check --backend word
+md2docx check --backend libreoffice
 ```
 
-DOCX 转 PDF：
+Markdown 生成 DOCX 和 PDF：
 
 ```bash
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
+md2docx thesis.md --pdf --out output --backend word
+md2docx thesis.md --pdf --out output --backend libreoffice
 ```
 
-Markdown 一步生成 DOCX 和 PDF：
+Markdown 生成 DOCX、PDF 和分页图片：
 
 ```bash
-python3 md2docx.py all thesis.md thesis.docx thesis.pdf --profile xju-undergraduate-thesis --backend auto
+md2docx thesis.md --pdf --pages --out output --backend auto
 ```
 
 ## Word 后端
@@ -57,20 +57,20 @@ Word 后端通过 Windows COM 注册名 `Word.Application` 启动 Microsoft Word
 WSL 下可运行：
 
 ```bash
-python3 md2docx.py doctor --backend word
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word
+md2docx check --backend word
+md2docx pdf thesis.docx thesis.pdf --backend word
 ```
 
 如果临时目录需要指定到 Windows 本地磁盘：
 
 ```bash
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend word --tmp-root /mnt/c/Temp/thesis-word-docx2pdf
+md2docx pdf thesis.docx thesis.pdf --backend word --tmp-root /mnt/c/Temp/thesis-word-docx2pdf
 ```
 
 Windows PowerShell：
 
 ```powershell
-py -3 md2docx.py pdf thesis.docx thesis.pdf --backend word --tmp-root C:\Temp\thesis-word-docx2pdf
+md2docx pdf thesis.docx thesis.pdf --backend word --tmp-root C:\Temp\thesis-word-docx2pdf
 ```
 
 常见依赖：
@@ -90,7 +90,7 @@ py -3 md2docx.py pdf thesis.docx thesis.pdf --backend word --tmp-root C:\Temp\th
 | `THESIS_WORD_DOCX2PDF_KEEP_TMP=1` | 保留临时文件，便于排查 |
 | `THESIS_WORD_DOCX2PDF_SKIP_WORD_CHECK=1` | 跳过前置 COM 可用性检查 |
 
-如果 `doctor` 显示 Word COM 不可用，优先检查：
+如果 `check` 显示 Word COM 不可用，优先检查：
 
 - Windows 侧 Word 是否安装并能手动打开。
 - Word 是否还有首次启动、登录、授权或隐私弹窗。
@@ -111,14 +111,14 @@ sudo apt-get install -y libreoffice
 检查和导出：
 
 ```bash
-python3 md2docx.py doctor --backend libreoffice
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice
+md2docx check --backend libreoffice
+md2docx pdf thesis.docx thesis.pdf --backend libreoffice
 ```
 
 如果 `soffice` 不在 PATH 中，可以指定路径：
 
 ```bash
-python3 md2docx.py pdf thesis.docx thesis.pdf --backend libreoffice --soffice /path/to/soffice
+md2docx pdf thesis.docx thesis.pdf --backend libreoffice --soffice /path/to/soffice
 ```
 
 或使用环境变量：
@@ -161,7 +161,7 @@ Ubuntu / Debian：
 sudo apt-get install -y poppler-utils
 ```
 
-`md2docx doctor` 会检查 `pdftoppm` 是否可用，但它不是生成 DOCX/PDF 的必要依赖。
+`md2docx check` 会检查 `pdftoppm` 是否可用，但它不是生成 DOCX/PDF 的必要依赖。
 
 ## WPS 和其他后端
 

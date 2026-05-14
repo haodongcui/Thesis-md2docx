@@ -23,23 +23,23 @@ python3 -m pip install -e ".[dev]"
 python3 -m py_compile md2docx.py $(find thesis_md2docx tests -name '*.py' -type f | sort)
 python3 -m pytest tests
 ./export-example.sh
-python3 md2docx.py doctor --backend auto
+md2docx check --backend auto
 ```
 
-`./export-example.sh` 会生成 DOCX、PDF 和分页图片，因此需要可用的 PDF 后端以及 `pdftoppm`。如果只改了非 PDF 相关代码且当前机器没有 PDF 后端，可至少运行前两条命令和 `python3 md2docx.py doctor`。
+`./export-example.sh` 会生成 DOCX、PDF 和分页图片，因此需要可用的 PDF 后端以及 `pdftoppm`。如果只改了非 PDF 相关代码且当前机器没有 PDF 后端，可至少运行前两条命令和 `md2docx check`。
 
 如果修改了公式转换或 PDF 预览相关代码，还建议运行：
 
 ```bash
-python3 md2docx.py doctor --backend word
-python3 md2docx.py pdf example/output/thesis-demo.docx example/output/thesis-demo.pdf --backend word
+md2docx check --backend word
+md2docx example/thesis-demo.md --pdf --out example/output --backend word
 ```
 
 如果修改了 LibreOffice 后端，还建议运行：
 
 ```bash
-python3 md2docx.py doctor --backend libreoffice
-python3 md2docx.py pdf example/output/thesis-demo.docx example/output/thesis-demo.pdf --backend libreoffice
+md2docx check --backend libreoffice
+md2docx example/thesis-demo.md --pdf --out example/output --backend libreoffice
 ```
 
 ## 提交内容

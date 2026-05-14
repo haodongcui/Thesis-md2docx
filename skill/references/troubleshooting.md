@@ -11,8 +11,8 @@ bash scripts/check_env.sh
 or directly:
 
 ```bash
-python3 md2docx.py doctor
-python3 md2docx.py doctor --backend auto
+md2docx check
+md2docx check --backend auto
 ```
 
 If `python` is missing on Linux, use `python3`.
@@ -25,7 +25,7 @@ Fix:
 
 ```bash
 npm install --prefix thesis_md2docx/math/latex2omml_node
-python3 md2docx.py doctor
+md2docx check
 ```
 
 Complex formulas and accent commands such as `\hat{}` or `\bar{}` still need final Word/WPS inspection.
