@@ -15,6 +15,7 @@ from ..ir import (
     ParagraphBlock,
     QuoteBlock,
     TableBlock,
+    TableCell,
     TableSplitBlock,
 )
 from ..math.converter import MathConverter
@@ -237,6 +238,15 @@ def build_document_blocks(
                     in_appendix = True
                     current_appendix_index = 0
                     current_chapter_number = ""
+                    append_chapter_page_break()
+                    elements.append(
+                        heading_builder(
+                            rules.display_heading_text(heading_text),
+                            level,
+                            profile,
+                            numbered=False,
+                        )
+                    )
                     continue
                 in_appendix = False
                 current_chapter_number = rules.extract_chapter_number(heading_text)
@@ -294,8 +304,16 @@ def build_document_blocks(
         if isinstance(block, TableBlock):
             rows = [list(row) for row in block.rows]
             if rows:
-                width = len(rows[0])
-                normalized = [row[:width] + [""] * max(0, width - len(row)) for row in rows]
+                rich_table = bool(block.options) or any(
+                    cell.colspan > 1 or cell.rowspan > 1 or cell.align or cell.header
+                    for row in rows
+                    for cell in row
+                )
+                if rich_table:
+                    normalized = rows
+                else:
+                    width = len(rows[0])
+                    normalized = [row[:width] + [TableCell("")] * max(0, width - len(row)) for row in rows]
                 table_chunks = split_table_rows(normalized, pending_table_split or [])
                 caption_style = profile.styles.caption or profile.styles.normal
                 for chunk_idx, table_chunk in enumerate(table_chunks):
@@ -313,6 +331,7 @@ def build_document_blocks(
                         table_builder(
                             table_chunk,
                             cell_style=profile.styles.table_cell,
+                            options=block.options,
                             math_converter=math_converter,
                             reference_anchors=reference_anchors,
                         )

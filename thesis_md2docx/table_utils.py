@@ -2,8 +2,22 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
+from typing import Mapping
 
 from .constants import BODY_TEXT_WIDTH_TWIPS
+
+
+@dataclass(frozen=True)
+class ParsedTableCell:
+    text: str
+    colspan: int = 1
+    rowspan: int = 1
+    header: bool = False
+    align: str | None = None
+
+
+ParsedTableRows = list[list[ParsedTableCell]]
 
 
 def split_markdown_row(line: str) -> list[str]:
@@ -13,6 +27,85 @@ def split_markdown_row(line: str) -> list[str]:
     if raw.endswith("|"):
         raw = raw[:-1]
     return [cell.strip() for cell in raw.split("|")]
+
+
+def parse_table_options(raw: str) -> dict[str, str]:
+    options: dict[str, str] = {}
+    for match in re.finditer(r"([A-Za-z_][\w-]*)=(\"[^\"]*\"|'[^']*'|[^\s}]+)", raw):
+        key = match.group(1).replace("-", "_")
+        value = match.group(2).strip()
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            value = value[1:-1]
+        options[key] = value
+    return options
+
+
+def parse_int_option(options: Mapping[str, str] | None, name: str, default: int | None = None) -> int | None:
+    if not options or name not in options:
+        return default
+    try:
+        return int(options[name])
+    except ValueError:
+        return default
+
+
+def parse_bool_option(options: Mapping[str, str] | None, name: str, default: bool = False) -> bool:
+    if not options or name not in options:
+        return default
+    return options[name].strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _parse_cell_attrs(raw_attrs: str) -> tuple[int, int, str | None, bool]:
+    colspan = 1
+    rowspan = 1
+    align = None
+    header = False
+    for part in raw_attrs.split():
+        if "=" not in part:
+            if part == "header":
+                header = True
+            continue
+        key, value = part.split("=", 1)
+        key = key.strip().replace("-", "_")
+        value = value.strip().strip('"').strip("'")
+        if key in {"colspan", "span"}:
+            try:
+                colspan = max(1, int(value))
+            except ValueError:
+                colspan = 1
+        elif key == "rowspan":
+            try:
+                rowspan = max(1, int(value))
+            except ValueError:
+                rowspan = 1
+        elif key == "align":
+            align = value
+        elif key == "header":
+            header = value.lower() not in {"0", "false", "no"}
+    return colspan, rowspan, align, header
+
+
+def parse_table_cell(raw: str, *, header: bool = False) -> ParsedTableCell:
+    text = raw.strip()
+    colspan = 1
+    rowspan = 1
+    align = None
+    explicit_header = False
+    attr_match = re.search(r"\s*\{([^{}]+)\}\s*$", text)
+    if attr_match:
+        colspan, rowspan, align, explicit_header = _parse_cell_attrs(attr_match.group(1))
+        text = text[: attr_match.start()].rstrip()
+    return ParsedTableCell(
+        text=text,
+        colspan=colspan,
+        rowspan=rowspan,
+        header=header or explicit_header,
+        align=align,
+    )
+
+
+def parse_table_row(line: str, *, header: bool = False) -> list[ParsedTableCell]:
+    return [parse_table_cell(cell, header=header) for cell in split_markdown_row(line)]
 
 
 def is_table_separator(line: str) -> bool:
@@ -26,13 +119,13 @@ def parse_table_split_spec(spec: str) -> list[int]:
     return [int(part.strip()) for part in spec.split(",") if part.strip() and int(part.strip()) > 0]
 
 
-def split_table_rows(rows: list[list[str]], data_row_counts: list[int]) -> list[list[list[str]]]:
+def split_table_rows(rows: ParsedTableRows, data_row_counts: list[int]) -> list[ParsedTableRows]:
     """Split a markdown table by data-row counts, keeping the header in every part."""
     if len(rows) <= 1 or not data_row_counts:
         return [rows]
     header = rows[0]
     data_rows = rows[1:]
-    chunks: list[list[list[str]]] = []
+    chunks: list[ParsedTableRows] = []
     start = 0
     for count in data_row_counts:
         if start >= len(data_rows):
@@ -95,10 +188,52 @@ def format_table_header_text(text: str) -> str:
     return compact
 
 
-def choose_table_font_size(rows: list[list[str]]) -> int:
-    col_count = max(len(rows[0]), 1)
-    longest_cell = max((table_visual_width(cell) for row in rows for cell in row), default=0.0)
-    header_names = [rows[0][i].strip() if i < len(rows[0]) else "" for i in range(col_count)]
+def table_rows_text(rows: ParsedTableRows) -> list[list[str]]:
+    return [[cell.text for cell in row] for row in rows]
+
+
+def expanded_table_grid(rows: ParsedTableRows) -> list[list[ParsedTableCell | None]]:
+    grid: list[list[ParsedTableCell | None]] = []
+    rowspans: dict[int, tuple[ParsedTableCell, int]] = {}
+    for row in rows:
+        grid_row: list[ParsedTableCell | None] = []
+        col_idx = 0
+
+        def fill_rowspan_cells() -> None:
+            nonlocal col_idx
+            while col_idx in rowspans:
+                cell, remaining = rowspans[col_idx]
+                grid_row.append(None)
+                if remaining <= 1:
+                    del rowspans[col_idx]
+                else:
+                    rowspans[col_idx] = (cell, remaining - 1)
+                col_idx += 1
+
+        for cell in row:
+            fill_rowspan_cells()
+            grid_row.append(cell)
+            for span_offset in range(1, cell.colspan):
+                grid_row.append(None)
+                if cell.rowspan > 1:
+                    rowspans[col_idx + span_offset] = (cell, cell.rowspan - 1)
+            if cell.rowspan > 1:
+                rowspans[col_idx] = (cell, cell.rowspan - 1)
+            col_idx += max(1, cell.colspan)
+        fill_rowspan_cells()
+        grid.append(grid_row)
+    return grid
+
+
+def expanded_column_count(rows: ParsedTableRows) -> int:
+    return max((len(row) for row in expanded_table_grid(rows)), default=0)
+
+
+def choose_table_font_size(rows: ParsedTableRows) -> int:
+    text_rows = table_rows_text(rows)
+    col_count = max(expanded_column_count(rows), 1)
+    longest_cell = max((table_visual_width(cell) for row in text_rows for cell in row), default=0.0)
+    header_names = [text_rows[0][i].strip() if i < len(text_rows[0]) else "" for i in range(col_count)]
     if col_count == 7 and header_names[0] == "变体":
         return 14
     if col_count == 3 and header_names[0] == "方法" and all("平均" in h for h in header_names[1:]):
@@ -156,10 +291,33 @@ def compute_grouped_metric_column_widths(col_count: int) -> list[int]:
     return widths
 
 
-def compute_table_column_widths(rows: list[list[str]]) -> list[int]:
-    col_count = max(len(rows[0]), 1)
+def parse_widths_option(value: str | None, *, expected_count: int | None = None) -> list[int] | None:
+    if not value:
+        return None
+    widths: list[int] = []
+    for part in value.split(","):
+        try:
+            widths.append(int(part.strip()))
+        except ValueError:
+            return None
+    if expected_count is not None and len(widths) != expected_count:
+        return None
+    return widths
+
+
+def compute_table_column_widths(rows: ParsedTableRows, *, options: Mapping[str, str] | None = None) -> list[int]:
+    text_rows = table_rows_text(rows)
+    col_count = expanded_column_count(rows) or max(len(rows[0]), 1)
+    explicit_widths = parse_widths_option(options.get("widths") if options else None, expected_count=col_count)
+    if explicit_widths:
+        return explicit_widths
     min_widths = [480] * col_count
-    header_names = [rows[0][i].strip() if i < len(rows[0]) else "" for i in range(col_count)]
+    header_grid = expanded_table_grid(rows)
+    first_grid_row = header_grid[0] if header_grid else []
+    header_names = [
+        first_grid_row[i].text.strip() if i < len(first_grid_row) and first_grid_row[i] is not None else ""
+        for i in range(col_count)
+    ]
 
     main_result_layout = (
         col_count == 6
@@ -210,7 +368,7 @@ def compute_table_column_widths(rows: list[list[str]]) -> list[int]:
         header_score = max(table_visual_width(part) for part in header_display.split("\n")) if header_display else 1.0
         if col_count <= 8:
             min_widths[col_idx] = max(min_widths[col_idx], int(header_score * 150))
-        body_cells = [row[col_idx].strip() for row in rows[1:] if col_idx < len(row)]
+        body_cells = [row[col_idx].strip() for row in text_rows[1:] if col_idx < len(row)]
         body_score = max((table_visual_width(cell) for cell in body_cells), default=1.0)
         numeric_ratio = (
             sum(1 for cell in body_cells if is_numeric_like_table_cell(cell)) / len(body_cells)

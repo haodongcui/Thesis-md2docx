@@ -64,22 +64,26 @@ def write_docx(
     )
     parts = active_profile.package_parts()
     style_bundle = active_profile.style_bundle()
-    with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(parts.content_types, active_profile.content_types_xml(media_manager.image_extensions()))
-        zf.writestr(parts.package_rels, active_profile.rels_xml())
-        zf.writestr(parts.core_props, active_profile.core_xml(doc_title))
-        zf.writestr(parts.app_props, active_profile.app_xml())
-        zf.writestr(parts.document, active_profile.document_xml(elements, sect_pr=sect_pr))
-        zf.writestr(parts.styles, style_bundle.styles_xml)
-        zf.writestr(parts.numbering, style_bundle.numbering_xml)
-        zf.writestr(parts.settings, style_bundle.settings_xml)
-        zf.writestr(parts.font_table, style_bundle.font_table_xml)
-        zf.writestr(parts.header, style_bundle.header_xml)
-        zf.writestr(parts.empty_footer, style_bundle.empty_footer_xml)
-        zf.writestr(parts.page_footer, style_bundle.page_footer_xml)
-        zf.writestr(parts.document_rels, active_profile.document_rels_xml(media_manager))
-        for image in media_manager.images:
-            zf.writestr(f"word/{image.part_name}", image.source_path.read_bytes())
+    try:
+        with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(parts.content_types, active_profile.content_types_xml(media_manager.image_extensions()))
+            zf.writestr(parts.package_rels, active_profile.rels_xml())
+            zf.writestr(parts.core_props, active_profile.core_xml(doc_title))
+            zf.writestr(parts.app_props, active_profile.app_xml())
+            zf.writestr(parts.document, active_profile.document_xml(elements, sect_pr=sect_pr))
+            zf.writestr(parts.styles, style_bundle.styles_xml)
+            zf.writestr(parts.numbering, style_bundle.numbering_xml)
+            zf.writestr(parts.settings, style_bundle.settings_xml)
+            zf.writestr(parts.font_table, style_bundle.font_table_xml)
+            zf.writestr(parts.header, style_bundle.header_xml)
+            zf.writestr(parts.empty_header, style_bundle.empty_header_xml)
+            zf.writestr(parts.empty_footer, style_bundle.empty_footer_xml)
+            zf.writestr(parts.page_footer, style_bundle.page_footer_xml)
+            zf.writestr(parts.document_rels, active_profile.document_rels_xml(media_manager))
+            for image in media_manager.images:
+                zf.writestr(f"word/{image.part_name}", image.source_path.read_bytes())
+    finally:
+        media_manager.cleanup_temp_dirs()
 
     if math_converter is not None:
         math_converter.emit_warning()

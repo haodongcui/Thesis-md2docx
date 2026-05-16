@@ -237,6 +237,29 @@ def example():
 
 标记中的数字表示按数据行拆分续表，例如 `8, 10` 表示第一段 8 行，第二段 10 行，剩余行自动进入后续表。
 
+复杂表格使用 `::: table` 扩展语法。它用于学校范例中的合并表头、固定列宽和特殊三线表线宽：
+
+```markdown
+表 1-2 方弯管内流动最大速度比较
+
+::: table {width=8529 width_type=dxa widths=2251,1546,1548,1547,1637 top_border=18 bottom_border=18 header_rows=2 header_bold=false}
+| 项目 {rowspan=2} | 层流 {colspan=2} | 紊流 {colspan=2} |
+| 0°截面 | 90°截面 | 0°截面 | 90°截面 |
+| 理论值 Vmax/m·s-1 | 0.04 | 0.03 | 1.30 | 1.25 |
+| 计算值 Vmax/m·s-1 | 0.04 | 0.03 | 1.26 | 1.21 |
+:::
+```
+
+可用参数：
+
+- `width` / `width_type`：表格总宽度和单位，常用 `width_type=dxa` 或 `pct`。
+- `widths`：逗号分隔的列宽，单位 dxa。
+- `top_border` / `mid_border` / `bottom_border`：顶线、中线、底线线宽，OOXML 中 `8` 约等于 1 磅。
+- `header_rows`：没有 Markdown 分隔线时，显式声明前几行是表头。
+- `header_bold=false`：表头不加粗，适合复刻部分学校范例表格。
+- `caption="表1-1 标题"`：把表题作为表格第一行，适合复刻范例中的特殊续表结构。
+- 单元格 `{colspan=2}`、`{rowspan=2}`：横向/纵向合并。
+
 ## 公式
 
 行内公式使用单个 `$`：

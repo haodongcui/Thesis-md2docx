@@ -32,6 +32,7 @@ class DocxPackageParts:
     settings: str = "word/settings.xml"
     font_table: str = "word/fontTable.xml"
     header: str = "word/header1.xml"
+    empty_header: str = "word/header2.xml"
     empty_footer: str = "word/footer1.xml"
     page_footer: str = "word/footer2.xml"
     document_rels: str = "word/_rels/document.xml.rels"
@@ -119,5 +120,6 @@ class StyleBundle:
     settings_xml: str
     font_table_xml: str
     header_xml: str
+    empty_header_xml: str
     empty_footer_xml: str
     page_footer_xml: str

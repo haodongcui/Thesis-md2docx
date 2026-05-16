@@ -139,14 +139,6 @@ def cover_logo_table_xml(
         '<w:tblW w:w="5400" w:type="dxa"/>'
         '<w:jc w:val="center"/>'
         '<w:tblLayout w:type="fixed"/>'
-        "<w:tblBorders>"
-        '<w:top w:val="nil"/>'
-        '<w:left w:val="nil"/>'
-        '<w:bottom w:val="nil"/>'
-        '<w:right w:val="nil"/>'
-        '<w:insideH w:val="nil"/>'
-        '<w:insideV w:val="nil"/>'
-        "</w:tblBorders>"
         "</w:tblPr>"
     )
     tbl_grid = (
@@ -226,14 +218,6 @@ def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
         '<w:bottom w:w="0" w:type="dxa"/>'
         '<w:right w:w="108" w:type="dxa"/>'
         "</w:tblCellMar>"
-        "<w:tblBorders>"
-        '<w:top w:val="nil"/>'
-        '<w:left w:val="nil"/>'
-        '<w:bottom w:val="nil"/>'
-        '<w:right w:val="nil"/>'
-        '<w:insideH w:val="nil"/>'
-        '<w:insideV w:val="nil"/>'
-        "</w:tblBorders>"
         "</w:tblPr>"
     )
     tbl_grid = '<w:tblGrid><w:gridCol w:w="1948"/><w:gridCol w:w="4995"/></w:tblGrid>'
@@ -258,13 +242,13 @@ def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
         label_para = formatted_paragraph_xml(
             row.label,
             align="center",
-            ppr_extra=spacing_xml(before=100, after=50, line=360),
+            ppr_extra="",
             run_kwargs=label_run,
         )
         value_para = formatted_paragraph_xml(
             row.value,
             align="center",
-            ppr_extra=spacing_xml(before=100, after=50, line=360),
+            ppr_extra="",
             run_kwargs=value_run,
         )
         value_borders = ["<w:tcBorders>"]
@@ -275,7 +259,7 @@ def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
 
         rows_xml.append(
             "<w:tr>"
-            '<w:trPr><w:trHeight w:val="686" w:hRule="atLeast"/></w:trPr>'
+            '<w:trPr><w:trHeight w:val="680"/></w:trPr>'
             '<w:tc><w:tcPr><w:tcW w:w="1948" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'
             + label_para
             + "</w:tc>"
@@ -299,16 +283,24 @@ def build_cover_elements(
 ) -> list[str]:
     elements: list[str] = []
     title_run = {
-        "font_ascii": "Times New Roman",
-        "font_hansi": "Times New Roman",
+        "font_ascii": "黑体",
+        "font_hansi": "宋体",
         "font_eastasia": "黑体",
     }
 
     elements.append(
         formatted_paragraph_xml(
+            "",
+            align="center",
+            ppr_extra=spacing_xml(line=600, line_rule="exact"),
+            run_kwargs={**title_run, "bold": True, "size": 52},
+        )
+    )
+    elements.append(
+        formatted_paragraph_xml(
             "新疆大学本科毕业论文(设计)",
             align="center",
-            ppr_extra=spacing_xml(before=560, after=0, line=360),
+            ppr_extra=spacing_xml(line=600, line_rule="exact"),
             run_kwargs={**title_run, "bold": True, "size": 52},
         )
     )
@@ -347,7 +339,7 @@ def build_front_heading(
             style=STYLE_FRONT_HEADING,
             align="center",
             ppr_extra='<w:snapToGrid w:val="0"/>'
-            + spacing_xml(before_lines=300, before=720, after_lines=200, after=480, line=240),
+            + spacing_xml(line=240),
             run_kwargs={
                 "font_ascii": "黑体",
                 "font_hansi": "黑体",
@@ -365,11 +357,10 @@ def build_front_heading(
             "size": 32,
         }
         ppr_extra = '<w:snapToGrid w:val="0"/>' + spacing_xml(
-            before_lines=100,
-            before=240,
+            before_lines=300,
+            before=720,
             after_lines=200,
             after=480,
-            line=240,
         )
     elif english:
         run_kwargs = {
@@ -378,7 +369,7 @@ def build_front_heading(
             "font_eastasia": "Times New Roman",
             "size": 32,
         }
-        ppr_extra = spacing_xml(before_lines=300, before=720, after_lines=200, after=480, line=240)
+        ppr_extra = spacing_xml(before_lines=300, before=720, after_lines=200, after=480)
     else:
         run_kwargs = {
             "font_ascii": "黑体",
@@ -391,19 +382,17 @@ def build_front_heading(
             before=720,
             after_lines=200,
             after=480,
-            line=240,
         )
 
     if page_break_before and not statement:
         if english:
-            ppr_extra = spacing_xml(before_lines=300, before=720, after_lines=200, after=480, line=240)
+            ppr_extra = spacing_xml(before_lines=300, before=720, after_lines=200, after=480)
         else:
             ppr_extra = '<w:snapToGrid w:val="0"/>' + spacing_xml(
                 before_lines=300,
                 before=720,
                 after_lines=200,
                 after=480,
-                line=240,
             )
 
     paragraph = formatted_paragraph_xml(
@@ -538,7 +527,7 @@ def build_statement_signature_paragraph(
 ) -> str:
     normalized = value.strip().strip("_").strip()
     if not normalized:
-        normalized = "   年   月   日" if is_date else ""
+        normalized = "   年   月   日" if is_date else "\u00a0" * 7
     run_kwargs = {
         "font_ascii": "宋体",
         "font_hansi": "宋体",

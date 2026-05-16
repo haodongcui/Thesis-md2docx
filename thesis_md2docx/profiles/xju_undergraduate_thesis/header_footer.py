@@ -41,6 +41,14 @@ def empty_footer_xml() -> str:
     )
 
 
+def empty_header_xml() -> str:
+    paragraph = paragraph_xml("", first_line=0, first_line_chars=0)
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:hdr xmlns:w="{W_NS}" xmlns:r="{R_NS}">{paragraph}</w:hdr>'
+    )
+
+
 def page_footer_xml() -> str:
     runs = [
         field_char_run_xml("begin"),

@@ -15,10 +15,52 @@ from .ir import (
     ParagraphBlock,
     QuoteBlock,
     TableBlock,
+    TableCell,
     TableSplitBlock,
 )
 from .markdown import join_soft_wrapped_lines
-from .table_utils import is_table_separator, split_markdown_row
+from .table_utils import is_table_separator, parse_int_option, parse_table_options, parse_table_row
+
+
+RICH_TABLE_START_PATTERN = re.compile(r"^:::\s*table(?:\s*\{(?P<attrs>.*)\})?\s*$")
+RICH_TABLE_END_PATTERN = re.compile(r"^:::\s*$")
+
+
+def _table_cells_from_line(line: str, *, header: bool = False) -> tuple[TableCell, ...]:
+    return tuple(
+        TableCell(
+            text=cell.text,
+            colspan=cell.colspan,
+            rowspan=cell.rowspan,
+            header=cell.header or header,
+            align=cell.align,
+        )
+        for cell in parse_table_row(line, header=header)
+    )
+
+
+def _rich_table_rows(table_lines: list[str], options: dict[str, str]) -> list[tuple[TableCell, ...]]:
+    data_lines: list[str] = []
+    separator_index: int | None = None
+    for table_line in table_lines:
+        if is_table_separator(table_line):
+            if separator_index is None:
+                separator_index = len(data_lines)
+            continue
+        data_lines.append(table_line)
+
+    header_rows_option = parse_int_option(options, "header_rows")
+    if header_rows_option is not None:
+        header_rows = max(0, header_rows_option)
+    elif separator_index is not None:
+        header_rows = separator_index
+    else:
+        header_rows = 1
+
+    return [
+        _table_cells_from_line(table_line, header=row_idx < header_rows)
+        for row_idx, table_line in enumerate(data_lines)
+    ]
 
 
 def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list[Block]:
@@ -121,6 +163,26 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
             i += 1
             continue
 
+        rich_table_match = RICH_TABLE_START_PATTERN.match(stripped)
+        if rich_table_match:
+            flush_paragraph()
+            options = parse_table_options(rich_table_match.group("attrs") or "")
+            table_lines: list[str] = []
+            i += 1
+            while i < len(lines):
+                candidate = lines[i]
+                candidate_stripped = candidate.strip()
+                if RICH_TABLE_END_PATTERN.match(candidate_stripped):
+                    break
+                if candidate_stripped and "|" in candidate:
+                    table_lines.append(candidate)
+                i += 1
+            rows = _rich_table_rows(table_lines, options)
+            if rows:
+                blocks.append(TableBlock(tuple(rows), options=options))
+            i += 1
+            continue
+
         image_match = IMAGE_PATTERN.match(stripped)
         if image_match:
             flush_paragraph()
@@ -160,13 +222,13 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
 
         if "|" in line and i + 1 < len(lines) and is_table_separator(lines[i + 1]):
             flush_paragraph()
-            rows = [tuple(split_markdown_row(line))]
+            rows = [_table_cells_from_line(line, header=True)]
             i += 2
             while i < len(lines):
                 candidate = lines[i].strip()
                 if not candidate or "|" not in candidate:
                     break
-                rows.append(tuple(split_markdown_row(lines[i])))
+                rows.append(_table_cells_from_line(lines[i]))
                 i += 1
             blocks.append(TableBlock(tuple(rows)))
             continue

@@ -54,7 +54,7 @@ $$
     assert blocks[3].text == "表 1-1 示例表"
 
     assert isinstance(blocks[4], TableBlock)
-    assert blocks[4].rows == (("列A", "列B"), ("a", "b"))
+    assert [[cell.text for cell in row] for row in blocks[4].rows] == [["列A", "列B"], ["a", "b"]]
 
     assert isinstance(blocks[5], ImageBlock)
     assert blocks[5].target == "img/demo.png"
@@ -65,3 +65,27 @@ $$
 
     assert isinstance(blocks[7], MathBlock)
     assert blocks[7].text == "x + y"
+
+
+def test_parse_body_blocks_supports_rich_table_options_and_spans() -> None:
+    text = """::: table {caption="表 1-2 方弯管内流动最大速度比较" width=8529 width_type=dxa widths=2251,1546,1548,1547,1637 top_border=18 bottom_border=18 header_rows=2}
+| 项目 {rowspan=2} | 层流 {colspan=2} | 紊流 {colspan=2} |
+| 0°截面 | 90°截面 | 0°截面 | 90°截面 |
+| 理论值 | 0.04 | 0.03 | 1.30 | 1.25 |
+:::
+"""
+
+    blocks = parse_body_blocks(text, rules=body_parse_rules())
+
+    assert len(blocks) == 1
+    assert isinstance(blocks[0], TableBlock)
+    assert blocks[0].options["caption"] == "表 1-2 方弯管内流动最大速度比较"
+    assert blocks[0].options["width"] == "8529"
+    assert blocks[0].options["width_type"] == "dxa"
+    assert blocks[0].rows[0][0].text == "项目"
+    assert blocks[0].rows[0][0].header
+    assert blocks[0].rows[0][0].rowspan == 2
+    assert blocks[0].rows[0][1].text == "层流"
+    assert blocks[0].rows[0][1].colspan == 2
+    assert blocks[0].rows[1][0].header
+    assert not blocks[0].rows[2][0].header

@@ -41,3 +41,22 @@ def test_backends_alias_lists_pdf_backends(capsys) -> None:
     assert "word" in captured.out
     assert "libreoffice" in captured.out
     assert "auto" in captured.out
+
+
+def test_compare_docx_command_writes_audit_report(tmp_path) -> None:
+    docx_path = tmp_path / "thesis-demo.docx"
+    report_path = tmp_path / "audit.md"
+
+    export_status = main(
+        [
+            "example/thesis-demo.md",
+            "--out",
+            str(tmp_path),
+            "--no-formula-conversion",
+        ]
+    )
+    status = main(["compare-docx", str(docx_path), str(docx_path), "--out", str(report_path), "--query", "摘"])
+
+    assert export_status == 0
+    assert status == 0
+    assert "# DOCX Format Audit" in report_path.read_text(encoding="utf-8")

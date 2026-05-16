@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 from ...builders.document import build_document_elements
+from ...constants import REL_ID_EMPTY_FOOTER, REL_ID_EMPTY_HEADER
 from .frontmatter import (
     build_blank_paragraph,
     build_body_paragraph,
@@ -25,11 +30,28 @@ from ...math.converter import MathConverter
 from ...media import MediaManager
 from ...ooxml.render import (
     add_section_to_paragraph_xml,
+    image_run_xml,
     page_break_xml,
+    paragraph_xml,
+    section_break_paragraph_xml,
     toc_field_paragraph_xml,
 )
+from ...ooxml.xml import spacing_xml
 from ...styles import StyleRole
 from ..base import ThesisProfile
+
+A4_WIDTH_TWIPS = 11907
+A4_HEIGHT_TWIPS = 16840
+A4_WIDTH_EMU = A4_WIDTH_TWIPS * 635
+A4_HEIGHT_EMU = A4_HEIGHT_TWIPS * 635
+EXTERNAL_TASKBOOK_PDF_KEYS = (
+    "任务书PDF",
+    "任务书 PDF",
+    "外部任务书PDF",
+    "外部任务书 PDF",
+    "任务书文件",
+)
+PDF_PAGE_IMAGE_DPI = 300
 
 
 def _front_text(front_sections: dict[str, str], page: FrontMatterPageSpec) -> str:
@@ -71,6 +93,7 @@ def _append_declaration_page(
     reference_anchors: dict[str, str] | None,
     markdown_dir: Path | None,
     media_manager: MediaManager | None,
+    section_break_after: str | None = None,
 ) -> None:
     if not declaration:
         return
@@ -107,7 +130,10 @@ def _append_declaration_page(
         build_statement_signature_paragraph(XJU_DECLARATION_SIGNATURE.date_label, date_value, is_date=True)
     )
     if page.page_break_after:
-        elements.append(page_break_xml())
+        if section_break_after:
+            elements.append(section_break_paragraph_xml(section_break_after))
+        else:
+            elements.append(page_break_xml())
 
 
 def _append_taskbook_page(
@@ -115,11 +141,135 @@ def _append_taskbook_page(
     *,
     taskbook: str,
     cover_info: dict[str, str],
-) -> bool:
+) -> tuple[bool, bool]:
     if not taskbook:
-        return False
+        return False, False
     elements.extend(build_taskbook_elements(taskbook, cover_info))
-    return True
+    return True, False
+
+
+def _taskbook_image_section_xml() -> str:
+    return (
+        '<w:sectPr><w:type w:val="nextPage"/>'
+        f'<w:headerReference w:type="default" r:id="{REL_ID_EMPTY_HEADER}"/>'
+        f'<w:footerReference w:type="default" r:id="{REL_ID_EMPTY_FOOTER}"/>'
+        '<w:pgNumType w:fmt="upperRoman"/>'
+        f'<w:pgSz w:w="{A4_WIDTH_TWIPS}" w:h="{A4_HEIGHT_TWIPS}"/>'
+        '<w:pgMar w:top="0" w:right="0" w:bottom="0" w:left="0" '
+        'w:header="0" w:footer="0" w:gutter="0"/>'
+        '<w:cols w:space="720"/>'
+        '<w:docGrid w:linePitch="384"/>'
+        '</w:sectPr>'
+    )
+
+
+def _front_matter_continue_section_xml(thesis_profile: ThesisProfile) -> str:
+    return thesis_profile.section_pr_xml(
+        with_header=True,
+        footer_kind="page",
+        section_type="nextPage",
+        page_number_format="upperRoman",
+    )
+
+
+def _resolve_external_taskbook_pdf(taskbook: str, markdown_dir: Path | None) -> Path | None:
+    task_info = parse_cover_info(taskbook)
+    raw_path = ""
+    for key in EXTERNAL_TASKBOOK_PDF_KEYS:
+        raw_path = task_info.get(key, "").strip()
+        if raw_path:
+            break
+    if not raw_path:
+        return None
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute() and markdown_dir is not None:
+        path = markdown_dir / path
+    path = path.resolve()
+    if path.suffix.lower() != ".pdf":
+        raise ValueError(f"外部任务书必须使用 PDF 文件：{path}")
+    if not path.is_file():
+        raise FileNotFoundError(f"外部任务书 PDF 不存在：{path}")
+    return path
+
+
+def _pdf_page_sort_key(path: Path) -> tuple[int, str]:
+    match = re.search(r"-(\d+)\.png$", path.name)
+    return (int(match.group(1)) if match else 0, path.name)
+
+
+def _render_pdf_pages_to_png(pdf_path: Path) -> list[Path]:
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftoppm:
+        raise RuntimeError("pdftoppm not found; install poppler-utils or add pdftoppm to PATH")
+    output_dir = Path(tempfile.mkdtemp(prefix="xju-taskbook-pdf-"))
+    output_prefix = output_dir / "page"
+    result = subprocess.run(
+        [pdftoppm, "-png", "-r", str(PDF_PAGE_IMAGE_DPI), str(pdf_path), str(output_prefix)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError((result.stdout or "").strip() or f"pdftoppm exited with {result.returncode}")
+    pages = sorted(output_dir.glob("page-*.png"), key=_pdf_page_sort_key)
+    if not pages:
+        raise RuntimeError(f"未能从外部任务书 PDF 渲染出页面：{pdf_path}")
+    return pages
+
+
+def _taskbook_pdf_page_xml(
+    image_item,
+    media_manager: MediaManager,
+    *,
+    page_break_after: bool = False,
+    section_after: str | None = None,
+) -> str:
+    runs = [
+        image_run_xml(
+            image_item,
+            docpr_id=media_manager.next_drawing_id(),
+            alt_text=image_item.filename,
+            width_emu=A4_WIDTH_EMU,
+            height_emu=A4_HEIGHT_EMU,
+        )
+    ]
+    if page_break_after:
+        runs.append('<w:r><w:br w:type="page"/></w:r>')
+    paragraph = paragraph_xml(
+        runs=runs,
+        ppr_extra='<w:snapToGrid w:val="0"/>' + spacing_xml(before=0, after=0),
+    )
+    if section_after:
+        paragraph = add_section_to_paragraph_xml(paragraph, section_after)
+    return paragraph
+
+
+def _append_external_taskbook_pdf(
+    elements: list[str],
+    *,
+    pdf_path: Path,
+    media_manager: MediaManager | None,
+    section_after: str,
+) -> tuple[bool, bool]:
+    if media_manager is None:
+        raise RuntimeError("外部任务书 PDF 需要 media_manager 才能插入 DOCX")
+    page_images = _render_pdf_pages_to_png(pdf_path)
+    if page_images:
+        media_manager.register_temp_dir(page_images[0].parent)
+    for index, image_path in enumerate(page_images):
+        image_item = media_manager.register_image(image_path)
+        if image_item is None:
+            raise RuntimeError(f"无法注册外部任务书页面图片：{image_path}")
+        is_last = index == len(page_images) - 1
+        elements.append(
+            _taskbook_pdf_page_xml(
+                image_item,
+                media_manager,
+                page_break_after=not is_last,
+                section_after=section_after if is_last else None,
+            )
+        )
+    return True, True
 
 
 def _append_abstract_page(
@@ -192,11 +342,16 @@ def build_document(
     # on physical page 3 while Roman numbering still starts at I.
     cover_sect = thesis_profile.section_from_spec(layout.cover)
     front_sect = thesis_profile.section_from_spec(layout.front_matter)
+    front_continue_sect = _front_matter_continue_section_xml(thesis_profile)
+    taskbook_image_sect = _taskbook_image_section_xml()
     body_start_sect = thesis_profile.section_from_spec(layout.body_start)
     body_continue_sect = thesis_profile.section_from_spec(layout.body_continue)
+    taskbook_text = front_sections.get(front_spec.taskbook_key or "", "").strip()
+    external_taskbook_pdf = _resolve_external_taskbook_pdf(taskbook_text, markdown_dir)
 
     elements: list[str] = []
     taskbook_added = False
+    taskbook_ended_with_section = False
     for page in thesis_profile.front_matter_plan().pages:
         if page.kind == "cover":
             _append_cover_page(
@@ -217,27 +372,42 @@ def build_document(
                 reference_anchors=reference_anchors,
                 markdown_dir=markdown_dir,
                 media_manager=media_manager,
+                section_break_after=front_sect if external_taskbook_pdf is not None else None,
             )
             continue
         if page.kind == "taskbook":
-            taskbook_added = _append_taskbook_page(
-                elements,
-                taskbook=_front_text(front_sections, page),
-                cover_info=cover_info,
-            )
+            if external_taskbook_pdf is not None:
+                taskbook_added, taskbook_ended_with_section = _append_external_taskbook_pdf(
+                    elements,
+                    pdf_path=external_taskbook_pdf,
+                    media_manager=media_manager,
+                    section_after=taskbook_image_sect,
+                )
+            else:
+                taskbook_added, taskbook_ended_with_section = _append_taskbook_page(
+                    elements,
+                    taskbook=_front_text(front_sections, page),
+                    cover_info=cover_info,
+                )
             continue
         if page.kind == "abstract":
             _append_abstract_page(
                 elements,
                 page=page,
                 text=_front_text(front_sections, page),
-                page_break_before=(not page.english and taskbook_added) or page.page_break_before,
+                page_break_before=(not page.english and taskbook_added and not taskbook_ended_with_section)
+                or page.page_break_before,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
             continue
         if page.kind == "toc":
-            _append_toc_page(elements, thesis_profile=thesis_profile, page=page, front_sect=front_sect)
+            _append_toc_page(
+                elements,
+                thesis_profile=thesis_profile,
+                page=page,
+                front_sect=front_continue_sect if taskbook_ended_with_section else front_sect,
+            )
             continue
 
     body_elements, body_has_section_breaks = build_document_elements(

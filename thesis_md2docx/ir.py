@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Mapping
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,17 @@ class FigureRowBlock:
 
 @dataclass(frozen=True)
 class TableBlock:
-    rows: tuple[tuple[str, ...], ...]
+    rows: tuple[tuple["TableCell", ...], ...]
+    options: Mapping[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class TableCell:
+    text: str
+    colspan: int = 1
+    rowspan: int = 1
+    header: bool = False
+    align: str | None = None
 
 
 @dataclass(frozen=True)

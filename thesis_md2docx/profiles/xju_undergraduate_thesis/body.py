@@ -36,6 +36,7 @@ def body_parse_rules() -> BodyParseRules:
         acknowledgement_heading="致谢",
         acknowledgement_display_text="致  谢",
         appendix_heading="附录",
+        appendix_display_text="附  录",
         appendix_formula_scope_prefix="附录",
         unnumbered_headings=frozenset({"参考文献", "致谢", "附录"}),
         skip_reference_paragraph_prefixes=("说明：",),
@@ -95,7 +96,7 @@ def heading_paragraph_xml(
             )
             return paragraph_xml(heading_text, style=style, align="left", ppr_extra=ppr_extra)
         if level == 1:
-            ppr_extra = spacing_xml(before_lines=80, before=0, line=240) + indent_xml(left=0, first_line=0)
+            ppr_extra = spacing_xml(line=240) + indent_xml(left=0, first_line=0)
         else:
             ppr_extra = (
                 ("<w:keepNext/><w:keepLines/>" if keep_with_next else "")
@@ -123,7 +124,7 @@ def acknowledgement_heading_paragraph_xml(text: str, profile: BodyRenderProfile)
     ppr_extra = (
         '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="0"/></w:numPr>'
         '<w:snapToGrid w:val="0"/>'
-        + spacing_xml(before_lines=0, before=0, after_lines=200, after=480, line=240)
+        + spacing_xml(line=240)
     )
     return paragraph_xml(text.strip(), style=style, ppr_extra=ppr_extra)
 
@@ -144,7 +145,7 @@ def caption_paragraph_xml(
         "size": 21,
         "bold": True,
     }
-    ppr_extra = spacing_xml(line=360, before=0, after=0) + indent_xml(left=0, first_line=0)
+    ppr_extra = spacing_xml(line=360, before=120, after=120) + indent_xml(left=0, first_line=0)
     if keep_next:
         ppr_extra += "<w:keepNext/>"
     return paragraph_with_inline_math_xml(

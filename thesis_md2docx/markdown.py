@@ -95,6 +95,7 @@ def parse_markdown_document(text: str) -> tuple[str, dict[str, str], str]:
 
 def parse_cover_info(text: str) -> dict[str, str]:
     info: dict[str, str] = {}
+    last_key = ""
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith(">"):
@@ -104,8 +105,11 @@ def parse_cover_info(text: str) -> dict[str, str]:
         elif ":" in stripped:
             key, value = stripped.split(":", 1)
         else:
+            if last_key:
+                info[last_key] = f"{info[last_key]}\n{stripped}" if info[last_key] else stripped
             continue
-        info[key.strip()] = value.strip()
+        last_key = key.strip()
+        info[last_key] = value.strip()
     return info
 
 
@@ -122,6 +126,10 @@ def extract_abstract_and_keywords(text: str, keyword_prefix: str) -> tuple[list[
 
 
 def split_cover_title_lines(title: str) -> list[str]:
+    explicit_lines = [re.sub(r"\s+", "", line.strip()) for line in title.splitlines() if line.strip()]
+    if len(explicit_lines) > 1:
+        return explicit_lines
+
     compact = re.sub(r"\s+", "", title.strip())
     if not compact:
         return [""]

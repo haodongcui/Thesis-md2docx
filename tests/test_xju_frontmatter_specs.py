@@ -7,6 +7,7 @@ from thesis_md2docx.profiles.xju_undergraduate_thesis.frontmatter import (
     cover_info_table_xml,
     resolve_taskbook_values,
 )
+from thesis_md2docx.markdown import parse_cover_info, split_cover_title_lines
 
 
 def test_xju_cover_field_specs_preserve_template_labels() -> None:
@@ -25,6 +26,13 @@ def test_xju_cover_field_specs_preserve_template_labels() -> None:
     assert "指导老师:" in xml
     assert "张三" in xml
     assert "李四" in xml
+
+
+def test_xju_cover_title_can_keep_explicit_template_line_breaks() -> None:
+    info = parse_cover_info("论文题目：丝绸之路……\n……\n学生姓名：张三")
+
+    assert info["论文题目"] == "丝绸之路……\n……"
+    assert split_cover_title_lines(info["论文题目"]) == ["丝绸之路……", "……"]
 
 
 def test_xju_taskbook_value_specs_define_fallback_order() -> None:

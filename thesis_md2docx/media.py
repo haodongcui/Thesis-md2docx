@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,7 @@ class MediaManager:
         self.next_docpr_id = 1
         self.images: list[MediaImage] = []
         self.by_path: dict[Path, MediaImage] = {}
+        self.temp_dirs: list[Path] = []
 
     def register_image(self, source_path: Path) -> MediaImage | None:
         resolved = source_path.resolve()
@@ -74,6 +76,14 @@ class MediaManager:
 
     def image_extensions(self) -> set[str]:
         return {item.filename.rsplit(".", 1)[-1].lower() for item in self.images if "." in item.filename}
+
+    def register_temp_dir(self, path: Path) -> None:
+        self.temp_dirs.append(path)
+
+    def cleanup_temp_dirs(self) -> None:
+        for path in self.temp_dirs:
+            shutil.rmtree(path, ignore_errors=True)
+        self.temp_dirs.clear()
 
 
 def image_extent_emu(path: Path) -> tuple[int, int]:

@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .audit import add_compare_docx_parser, run_compare_docx
 from .doctor import run_doctor
 from .exporter import write_docx
 from .pdf.common import PdfError
@@ -248,6 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-profiles", help="print supported thesis format profile names")
     subparsers.add_parser("backends", help="print supported PDF backend names")
     subparsers.add_parser("profiles", help="print supported thesis format profile names")
+    add_compare_docx_parser(subparsers)
     return parser
 
 
@@ -261,6 +263,7 @@ COMPAT_COMMANDS = {
     "list-profiles",
     "backends",
     "profiles",
+    "compare-docx",
 }
 
 
@@ -296,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in {"list-profiles", "profiles"}:
             print("\n".join(profile_names()))
             return 0
+        if args.command == "compare-docx":
+            return run_compare_docx(args)
     except (PdfError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

@@ -178,6 +178,9 @@ class ThesisProfile:
     def header_xml(self) -> str:
         return self.style_bundle().header_xml
 
+    def empty_header_xml(self) -> str:
+        return self.style_bundle().empty_header_xml
+
     def empty_footer_xml(self) -> str:
         return self.style_bundle().empty_footer_xml
 

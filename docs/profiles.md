@@ -115,6 +115,7 @@ Profile 还应显式提供：
 - 将 Markdown 正文解析为 `HeadingBlock`、`ParagraphBlock`、`TableBlock`、`ImageBlock` 等 IR block。
 - 行内公式、行内代码、加粗、斜体、参考文献跳转。
 - DOCX zip 包结构、媒体文件关系、PDF 后端调用。
+- 复杂表格 IR：`TableCell` 支持 `colspan`、`rowspan`、表头行、列宽、线宽和表题行选项，profile 决定这些结构最终怎样写入 Word。
 
 Profile 应该处理：
 
@@ -157,6 +158,14 @@ Markdown 文件
 - `ooxml/`：提供段落、表格、图片、字段、包部件等基础 OOXML 构造。
 - `profiles/<name>/`：决定某个学校/学位格式到底怎样排版。
 - `pdf/`：负责 DOCX 到 PDF，不影响 DOCX 生成逻辑。
+
+格式复刻时建议同步使用审计命令：
+
+```bash
+md2docx compare-docx reference.docx candidate.docx --out output/audit.md
+```
+
+它会列出关键段落和表格的直接 OOXML 属性，适合定位“规范写了但工具没表达出来”的细节。
 
 ## 样式体系
 

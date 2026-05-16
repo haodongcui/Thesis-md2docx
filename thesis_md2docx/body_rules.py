@@ -13,6 +13,7 @@ class BodyParseRules:
     acknowledgement_heading: str | None = None
     acknowledgement_display_text: str | None = None
     appendix_heading: str | None = None
+    appendix_display_text: str | None = None
     appendix_item_level: int = 2
     appendix_child_headings_unnumbered: bool = True
     appendix_formula_scope_prefix: str = "Appendix"
@@ -37,6 +38,8 @@ class BodyParseRules:
     def display_heading_text(self, text: str) -> str:
         if self.is_acknowledgement_heading(text) and self.acknowledgement_display_text:
             return self.acknowledgement_display_text
+        if self.is_appendix_heading(text) and self.appendix_display_text:
+            return self.appendix_display_text
         return text
 
     def is_appendix_heading(self, text: str) -> bool:

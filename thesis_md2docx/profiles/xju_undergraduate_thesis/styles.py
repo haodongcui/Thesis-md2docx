@@ -211,7 +211,7 @@ def xju_style_catalog() -> StyleCatalog:
                 q_format=True,
                 paragraph_props=style_props(
                     justification("center"),
-                    spacing(before_lines=300, before=720, after_lines=200, after=480, line=240),
+                    spacing(before_lines=300, before=720, after_lines=200, after=480, line=288),
                 ),
                 run_props=style_props(
                     run_fonts(ascii="黑体", hansi="黑体", eastasia="黑体"),
@@ -247,7 +247,7 @@ def xju_style_catalog() -> StyleCatalog:
                 based_on="Normal",
                 paragraph_props=style_props(
                     tabs(tab("right", 8313, leader="dot")),
-                    indent(left=240),
+                    indent(left=100),
                     spacing(after=0, line=288),
                 ),
                 run_props=style_props(
@@ -261,7 +261,7 @@ def xju_style_catalog() -> StyleCatalog:
                 based_on="Normal",
                 paragraph_props=style_props(
                     tabs(tab("right", 8313, leader="dot")),
-                    indent(left=480),
+                    indent(left=200),
                     spacing(after=0, line=288),
                 ),
                 run_props=style_props(
@@ -306,7 +306,7 @@ def xju_style_catalog() -> StyleCatalog:
                 based_on="Normal",
                 paragraph_props=style_props(
                     justification("center"),
-                    spacing(before_lines=0, before=0, after_lines=0, after=0, line=360),
+                    spacing(before_lines=50, before=120, after_lines=50, after=120, line=288),
                     indent(left=0, first_line=0),
                 ),
                 run_props=style_props(
@@ -381,7 +381,7 @@ def xju_styles_xml() -> str:
 
 
 def xju_style_bundle() -> StyleBundle:
-    from .header_footer import empty_footer_xml, header_xml, page_footer_xml
+    from .header_footer import empty_footer_xml, empty_header_xml, header_xml, page_footer_xml
 
     return StyleBundle(
         styles_xml=xju_styles_xml(),
@@ -389,6 +389,7 @@ def xju_style_bundle() -> StyleBundle:
         settings_xml=settings_xml(),
         font_table_xml=xju_font_table_xml(),
         header_xml=header_xml(),
+        empty_header_xml=empty_header_xml(),
         empty_footer_xml=empty_footer_xml(),
         page_footer_xml=page_footer_xml(),
     )
