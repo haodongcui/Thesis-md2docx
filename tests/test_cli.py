@@ -59,4 +59,9 @@ def test_compare_docx_command_writes_audit_report(tmp_path) -> None:
 
     assert export_status == 0
     assert status == 0
-    assert "# DOCX Format Audit" in report_path.read_text(encoding="utf-8")
+    report = report_path.read_text(encoding="utf-8")
+    assert "# DOCX Format Audit" in report
+    assert "## Section Checks" in report
+    assert "## Table Checks" in report
+    assert "## Drawing Checks" in report
+    assert "## Field Checks" in report

@@ -212,12 +212,7 @@ def cover_info_table_xml(title: str, cover_info: dict[str, str]) -> str:
         '<w:tblW w:w="6943" w:type="dxa"/>'
         '<w:jc w:val="center"/>'
         '<w:tblLayout w:type="fixed"/>'
-        "<w:tblCellMar>"
-        '<w:top w:w="0" w:type="dxa"/>'
-        '<w:left w:w="108" w:type="dxa"/>'
-        '<w:bottom w:w="0" w:type="dxa"/>'
-        '<w:right w:w="108" w:type="dxa"/>'
-        "</w:tblCellMar>"
+        '<w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:val="04A0"/>'
         "</w:tblPr>"
     )
     tbl_grid = '<w:tblGrid><w:gridCol w:w="1948"/><w:gridCol w:w="4995"/></w:tblGrid>'

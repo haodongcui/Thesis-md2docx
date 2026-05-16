@@ -165,7 +165,7 @@ Markdown 文件
 md2docx compare-docx reference.docx candidate.docx --out output/audit.md
 ```
 
-它会列出关键段落和表格的直接 OOXML 属性，适合定位“规范写了但工具没表达出来”的细节。
+它会列出分节、页边距、页眉页脚引用、关键段落、字体 run、表格行高、单元格属性、图片和域字段，适合定位“规范写了但工具没表达出来”的细节。
 
 ## 样式体系
 

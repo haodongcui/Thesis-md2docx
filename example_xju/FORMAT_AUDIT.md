@@ -57,5 +57,6 @@ python3 md2docx.py example_xju/xju-template-example.md --pdf --pages --out examp
 - 生成 PDF 页数：25 页。
 - 生成分页图片：25 张。
 - 学校范例 PDF 页数：25 页。
-- `compare-docx` 表格检查：封面字段表、表1-1、表1-1续表、表1-2、表2-2、表2-3 的表宽、列宽、行数和边框均为 `same`。
+- `compare-docx` 表格 core 已对齐：封面字段表、表1-1、表1-1续表、表1-2、表2-2、表2-3 的表宽、列宽、行数、外边框、`tblLayout`、`tblLook`、表级 cell margins 和行高/行标记均已一致。
+- `compare-docx` 表格 detail 仍显示差异：单元格内段落样式、run 字体继承/直接属性、部分 cell border 的底层写法还未完全复刻。
 - 关键页已对照：封面、声明、目录、正文第一页、三线表页、参考文献页、致谢页、附录页。

@@ -194,7 +194,7 @@ a.标题 7
 
 （6）表格必须通栏，即表格宽度与正文版面平齐，如下表所示。
 
-::: table {caption="表1-1 文献类型和标志代码" width=5000 width_type=pct widths=2079,2078,2078,2078 top_border=12 bottom_border=12 header_rows=1 header_bold=false}
+::: table {caption="表1-1 文献类型和标志代码" width=5000 width_type=pct widths=2079,2078,2078,2078 top_border=12 bottom_border=12 header_rows=1 header_bold=false row_heights=358,357,357,357,357,357 repeat_header_rows=6}
 | 文献类型 | 标志代码 | 文献类型 | 标志代码 |
 | 普通图书 | M | 会议录 | C |
 | 汇编 | G | 报纸 | N |
@@ -204,7 +204,7 @@ a.标题 7
 
 表1-1 文献类型和标志代码（续）
 
-::: table {width=8529 width_type=dxa widths=2132,2132,2132,2133 top_border=12 bottom_border=12 header_rows=1 header_bold=false}
+::: table {width=8529 width_type=dxa widths=2132,2132,2132,2133 top_border=12 bottom_border=12 header_rows=1 header_bold=false row_heights=358,373,373 repeat_header_rows=0}
 | 文献类型 | 标志代码 | 文献类型 | 标志代码 |
 | 专利 | P | 数据库 | DB |
 | 计算机程序 | CP | 电子公告 | EB |
@@ -214,7 +214,7 @@ a.标题 7
 
 表1-2 方弯管内流动最大速度比较
 
-::: table {width=8529 width_type=dxa widths=2251,1546,1548,1547,1637 top_border=18 bottom_border=18 header_rows=2 header_bold=false}
+::: table {width=8529 width_type=dxa widths=2251,1546,1548,1547,1637 top_border=18 bottom_border=18 header_rows=2 header_bold=false row_heights=324,352,395,395,395 repeat_header_rows=0 cant_split_rows=1,2}
 | 项目 {rowspan=2} | 层流 {colspan=2} | 紊流 {colspan=2} |
 | 0°截面 | 90°截面 | 0°截面 | 90°截面 |
 | 理论值 Vmax/m·s-1 | 0.04 | 0.03 | 1.30 | 1.25 |
@@ -480,7 +480,7 @@ F 电子文献（包括专著或连续出版物中析出的电子文献）
 
 表2-2 文献类型和标志代码
 
-::: table {width=8738 width_type=dxa widths=2184,2184,2185,2185 top_border=12 bottom_border=12 header_rows=1 header_bold=false}
+::: table {width=8738 width_type=dxa widths=2184,2184,2185,2185 top_border=12 bottom_border=12 header_rows=1 header_bold=false row_heights=358,358,358,358,358,373,373 repeat_header_rows=0}
 | 文献类型 | 标志代码 | 文献类型 | 标志代码 |
 | 普通图书 | M | 会议录 | C |
 | 汇编 | G | 报纸 | N |
@@ -492,7 +492,7 @@ F 电子文献（包括专著或连续出版物中析出的电子文献）
 
 表2-3 电子文献载体和标志代码
 
-::: table {width=8738 width_type=dxa widths=2935,1433,2185,2185 top_border=4 bottom_border=4 header_rows=1 header_bold=false}
+::: table {width=8738 width_type=dxa widths=2935,1433,2185,2185 top_border=4 bottom_border=4 header_rows=1 header_bold=false row_heights=343,343,358 repeat_header_rows=0}
 | 载体类型 | 标志代码 | 载体类型 | 标志代码 |
 | 磁带（magnetic tape） | MT | 磁盘（disk） | DK |
 | 光盘（CD-ROM） | CD | 联机网络（online） | OL |

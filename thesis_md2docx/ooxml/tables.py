@@ -13,6 +13,7 @@ from ..table_utils import (
     parse_bool_option,
     parse_int_option,
     parse_grouped_step_header,
+    parse_widths_option,
     table_rows_text,
 )
 from .paragraphs import paragraph_with_inline_math_xml
@@ -94,31 +95,61 @@ def table_xml(
     bottom_border_size = parse_int_option(options, "bottom_border", 12) or 12
     table_width = options.get("width", "5000") if options else "5000"
     table_width_type = options.get("width_type", "pct") if options else "pct"
+    table_layout = options.get("layout") if options and "layout" in options else ("fixed" if table_width_type == "dxa" else None)
+    if table_layout in {"", "none", "omit"}:
+        table_layout = None
+    table_look = options.get("look", "04A0") if options is not None else "04A0"
+    if table_look in {"", "none", "omit"}:
+        table_look = None
     caption_text = options.get("caption", "").strip() if options else ""
     caption_bold = parse_bool_option(options, "caption_bold", default=True)
     header_bold = parse_bool_option(options, "header_bold", default=True)
+    header_top_border = parse_bool_option(options, "header_top_border", default=True)
+    cant_split = parse_bool_option(options, "cant_split", default=False)
+    repeat_header_rows = parse_int_option(options, "repeat_header_rows")
+    row_height = parse_int_option(options, "row_height")
+    row_heights = parse_widths_option(options.get("row_heights") if options else None)
+    row_height_rule = options.get("row_height_rule", "") if options else ""
+    cant_split_rows = set(parse_widths_option(options.get("cant_split_rows") if options else None) or [])
+    cell_margins = parse_widths_option(options.get("cell_margins") if options else None, expected_count=4)
     has_header_flags = any(cell.header for row in rows for cell in row)
     plain_header_layout = (
         (col_count == 7 and header_names[:2] == ["任务", "条件"])
         or (col_count == 3 and header_names[0] == "方法" and all("平均" in h for h in header_names[1:]))
     )
-    tbl_pr = (
-        "<w:tblPr>"
-        f'<w:tblW w:w="{table_width}" w:type="{table_width_type}"/>'
-        '<w:jc w:val="center"/>'
-        "<w:tblCellMar>"
-        '<w:top w:w="0" w:type="dxa"/>'
-        '<w:left w:w="12" w:type="dxa"/>'
-        '<w:bottom w:w="0" w:type="dxa"/>'
-        '<w:right w:w="12" w:type="dxa"/>'
-        "</w:tblCellMar>"
-        "<w:tblBorders>"
-        f'<w:top w:val="single" w:sz="{top_border_size}" w:space="0" w:color="auto"/>'
-        f'<w:bottom w:val="single" w:sz="{bottom_border_size}" w:space="0" w:color="auto"/>'
-        "</w:tblBorders>"
-        '<w:tblLayout w:type="fixed"/>'
-        "</w:tblPr>"
+    tbl_pr_parts = [
+        "<w:tblPr>",
+        f'<w:tblW w:w="{table_width}" w:type="{table_width_type}"/>',
+        '<w:jc w:val="center"/>',
+    ]
+    if cell_margins is not None:
+        top, right, bottom, left = cell_margins
+        tbl_pr_parts.extend(
+            [
+                "<w:tblCellMar>",
+                f'<w:top w:w="{top}" w:type="dxa"/>',
+                f'<w:right w:w="{right}" w:type="dxa"/>',
+                f'<w:bottom w:w="{bottom}" w:type="dxa"/>',
+                f'<w:left w:w="{left}" w:type="dxa"/>',
+                "</w:tblCellMar>",
+            ]
+        )
+    tbl_pr_parts.extend(
+        [
+            "<w:tblBorders>",
+            f'<w:top w:val="single" w:sz="{top_border_size}" w:space="0" w:color="auto"/>',
+            f'<w:bottom w:val="single" w:sz="{bottom_border_size}" w:space="0" w:color="auto"/>',
+            "</w:tblBorders>",
+        ]
     )
+    if table_layout:
+        tbl_pr_parts.append(f'<w:tblLayout w:type="{table_layout}"/>')
+    if table_look:
+        tbl_pr_parts.append(
+            f'<w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:val="{table_look}"/>'
+        )
+    tbl_pr_parts.append("</w:tblPr>")
+    tbl_pr = "".join(tbl_pr_parts)
     tbl_grid = "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{col_width}"/>' for col_width in col_widths) + "</w:tblGrid>"
 
     # Header rows repeat across page breaks; every row carries `cantSplit` so a
@@ -126,7 +157,22 @@ def table_xml(
     # across pages when it is too tall to fit.
     trs = []
     start_row_idx = 0
+
+    def row_pr_xml(row_idx: int, *, header: bool = False, cant_split_row: bool | None = None) -> str:
+        parts: list[str] = []
+        height = row_heights[row_idx] if row_heights is not None and row_idx < len(row_heights) else row_height
+        if height is not None:
+            h_rule_attr = f' w:hRule="{row_height_rule}"' if row_height_rule else ""
+            parts.append(f'<w:trHeight w:val="{height}"{h_rule_attr}/>')
+        effective_cant_split = cant_split if cant_split_row is None else cant_split_row
+        if effective_cant_split or row_idx + 1 in cant_split_rows:
+            parts.append("<w:cantSplit/>")
+        if header:
+            parts.append("<w:tblHeader/>")
+        return f"<w:trPr>{''.join(parts)}</w:trPr>" if parts else ""
+
     if caption_text:
+        caption_row_idx = len(trs)
         caption_cell = table_cell_xml(
             caption_text,
             width=sum(col_widths),
@@ -140,9 +186,11 @@ def table_xml(
             math_converter=math_converter,
             reference_anchors=reference_anchors,
         )
-        trs.append(f"<w:tr><w:trPr><w:cantSplit/></w:trPr>{caption_cell}</w:tr>")
+        caption_header = repeat_header_rows is not None and caption_row_idx < repeat_header_rows
+        trs.append(f"<w:tr>{row_pr_xml(caption_row_idx, header=caption_header)}{caption_cell}</w:tr>")
 
     if grouped_header:
+        top_row_idx = len(trs)
         top_cells = [
             table_cell_xml(
                 grouped_header["first"],
@@ -186,8 +234,10 @@ def table_xml(
                 reference_anchors=reference_anchors,
             )
         )
-        trs.append(f"<w:tr><w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>{''.join(top_cells)}</w:tr>")
+        top_header = repeat_header_rows is None or top_row_idx < repeat_header_rows
+        trs.append(f"<w:tr>{row_pr_xml(top_row_idx, header=top_header, cant_split_row=cant_split)}{''.join(top_cells)}</w:tr>")
 
+        second_row_idx = len(trs)
         second_cells = [
             table_cell_xml(
                 "",
@@ -234,7 +284,10 @@ def table_xml(
                 reference_anchors=reference_anchors,
             )
         )
-        trs.append(f"<w:tr><w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>{''.join(second_cells)}</w:tr>")
+        second_header = repeat_header_rows is None or second_row_idx < repeat_header_rows
+        trs.append(
+            f"<w:tr>{row_pr_xml(second_row_idx, header=second_header, cant_split_row=cant_split)}{''.join(second_cells)}</w:tr>"
+        )
         start_row_idx = 1
 
     if not grouped_header:
@@ -286,7 +339,9 @@ def table_xml(
                         font_size=table_font_size,
                         bold=cell_is_header and header_bold,
                         bottom_border=cell_is_header,
+                        top_border=cell_is_header and header_top_border and r_idx == 0 and not caption_text,
                         bottom_border_size=mid_border_size,
+                        top_border_size=top_border_size,
                         grid_span=cell.colspan if cell.colspan > 1 else None,
                         vmerge="restart" if cell.rowspan > 1 else None,
                         preserve_breaks=cell_is_header and "\n" in display_text,
@@ -298,11 +353,11 @@ def table_xml(
                     active_rowspans[col_idx] = cell.rowspan - 1
                 col_idx += max(1, cell.colspan)
             append_rowspan_continuations()
-            tr_pr_parts = ["<w:cantSplit/>"]
-            if row_is_header:
-                tr_pr_parts.append('<w:tblHeader/>')
-            tr_pr = f"<w:trPr>{''.join(tr_pr_parts)}</w:trPr>"
-            trs.append(f"<w:tr>{tr_pr}{''.join(cells)}</w:tr>")
+            row_output_idx = len(trs)
+            repeated_header = (
+                row_output_idx < repeat_header_rows if repeat_header_rows is not None else row_is_header
+            )
+            trs.append(f"<w:tr>{row_pr_xml(row_output_idx, header=repeated_header)}{''.join(cells)}</w:tr>")
         return f"<w:tbl>{tbl_pr}{tbl_grid}{''.join(trs)}</w:tbl>"
 
     for r_idx, row in enumerate(text_rows[start_row_idx:], start=start_row_idx):
@@ -327,11 +382,7 @@ def table_xml(
                     reference_anchors=reference_anchors,
                 )
             )
-        tr_pr_parts = ["<w:cantSplit/>"]
-        if r_idx == 0 and not grouped_header:
-            # Repeat the header row when the table breaks across pages so
-            # readers always see column headings.
-            tr_pr_parts.append('<w:tblHeader/>')
-        tr_pr = f"<w:trPr>{''.join(tr_pr_parts)}</w:trPr>"
-        trs.append(f"<w:tr>{tr_pr}{''.join(cells)}</w:tr>")
+        row_output_idx = len(trs)
+        repeated_header = row_output_idx < repeat_header_rows if repeat_header_rows is not None else False
+        trs.append(f"<w:tr>{row_pr_xml(row_output_idx, header=repeated_header)}{''.join(cells)}</w:tr>")
     return f"<w:tbl>{tbl_pr}{tbl_grid}{''.join(trs)}</w:tbl>"

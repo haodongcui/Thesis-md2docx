@@ -144,7 +144,7 @@ md2docx pdf thesis.docx thesis.pdf --backend word
 md2docx profiles
 md2docx backends
 
-# 对照两个 DOCX 的关键段落和表格属性
+# 对照两个 DOCX 的关键版式属性
 md2docx compare-docx reference.docx output/thesis.docx --out output/audit.md
 ```
 
@@ -219,7 +219,7 @@ KEY WORDS: Keyword one; Keyword two; Keyword three
 :::
 ```
 
-常用选项：`width`、`width_type`、`widths`、`top_border`、`mid_border`、`bottom_border`、`header_rows`、`header_bold`、`caption`。单元格可写 `{colspan=2}`、`{rowspan=2}`、`{align=center}`。
+常用选项：`width`、`width_type`、`widths`、`top_border`、`mid_border`、`bottom_border`、`header_rows`、`header_bold`、`caption`、`row_height`、`row_heights`、`repeat_header_rows`、`cant_split_rows`。单元格可写 `{colspan=2}`、`{rowspan=2}`、`{align=center}`。
 
 ## 公式支持
 
@@ -257,7 +257,7 @@ md2docx compare-docx \
   --out example/output/audit.md
 ```
 
-审计报告会列出关键段落的样式、段前段后、缩进、字体，以及表格宽度、列宽、线宽和首行结构。它用于定位差异；像素级完全一致仍取决于 Word/PDF 导出环境和底层 DOCX 对象结构。
+审计报告会列出分节、页边距、页眉页脚引用、关键段落、字体 run、表格宽度、列宽、行高、单元格属性、图片和域字段。它用于定位差异；像素级完全一致仍取决于 Word/PDF 导出环境和底层 DOCX 对象结构。
 
 ## 支持范围
 

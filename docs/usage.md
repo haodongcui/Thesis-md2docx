@@ -258,6 +258,9 @@ def example():
 - `header_rows`：没有 Markdown 分隔线时，显式声明前几行是表头。
 - `header_bold=false`：表头不加粗，适合复刻部分学校范例表格。
 - `caption="表1-1 标题"`：把表题作为表格第一行，适合复刻范例中的特殊续表结构。
+- `row_height` / `row_heights`：设置统一行高或逐行行高，单位 dxa。
+- `repeat_header_rows` / `cant_split_rows`：精确控制重复表头行和禁止跨页拆分的行。
+- `layout` / `look` / `cell_margins`：控制底层 Word 表布局、`tblLook` 和表格单元格边距。
 - 单元格 `{colspan=2}`、`{rowspan=2}`：横向/纵向合并。
 
 ## 公式
