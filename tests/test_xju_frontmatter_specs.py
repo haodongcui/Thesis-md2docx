@@ -6,6 +6,7 @@ from thesis_md2docx.profiles.xju_undergraduate_thesis.frontmatter import (
     XJU_TASKBOOK_VALUES,
     cover_info_table_xml,
     resolve_taskbook_values,
+    use_taskbook_cover_fallback,
 )
 from thesis_md2docx.markdown import parse_cover_info, split_cover_title_lines
 
@@ -77,9 +78,15 @@ def test_xju_taskbook_value_specs_define_fallback_order() -> None:
     assert values["year"] == "……"
 
 
+def test_xju_taskbook_cover_fallback_can_be_disabled() -> None:
+    assert use_taskbook_cover_fallback({"自动补全": "是"})
+    assert not use_taskbook_cover_fallback({"自动补全": "否"})
+    assert not use_taskbook_cover_fallback({"使用封面信息": "false"})
+
+
 def test_xju_declaration_signature_spec_preserves_spacing_rule() -> None:
     assert XJU_DECLARATION_SIGNATURE.author_label == "作者签名："
     assert XJU_DECLARATION_SIGNATURE.date_label == "签字日期："
     assert XJU_DECLARATION_SIGNATURE.signature_alt == "电子签名"
-    assert XJU_DECLARATION_SIGNATURE.blank_count(has_signature_image=False) == 14
-    assert XJU_DECLARATION_SIGNATURE.blank_count(has_signature_image=True) == 10
+    assert XJU_DECLARATION_SIGNATURE.blank_count(has_signature_image=False) == 17
+    assert XJU_DECLARATION_SIGNATURE.blank_count(has_signature_image=True) == 13

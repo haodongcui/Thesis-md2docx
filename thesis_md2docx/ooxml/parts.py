@@ -50,7 +50,11 @@ def document_xml(elements: list[str], sect_pr: str | None = None) -> str:
     sect_pr = sect_pr or default_sect_pr_xml()
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}" xmlns:m="{M_NS}" xmlns:wp="{WP_NS}" xmlns:a="{A_NS}" xmlns:pic="{PIC_NS}">'
+        f'<w:document xmlns:w="{W_NS}" xmlns:r="{R_NS}" xmlns:m="{M_NS}" xmlns:wp="{WP_NS}" '
+        'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
+        f'xmlns:a="{A_NS}" xmlns:pic="{PIC_NS}" '
+        'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" '
+        'xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main">'
         f"<w:body>{''.join(elements)}{sect_pr}</w:body>"
         "</w:document>"
     )

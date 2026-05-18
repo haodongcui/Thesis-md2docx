@@ -20,35 +20,83 @@ from .paragraphs import paragraph_with_inline_math_xml
 from .xml import spacing_xml
 
 
+BorderSpec = tuple[str | None, int | None]
+
+
+def _parse_border_specs(value: str | None) -> list[BorderSpec] | None:
+    if not value:
+        return None
+    specs: list[BorderSpec] = []
+    for raw_part in value.split(","):
+        part = raw_part.strip().lower()
+        if part in {"", "none", "omit"}:
+            specs.append((None, None))
+        elif part == "nil":
+            specs.append(("nil", None))
+        else:
+            try:
+                specs.append(("single", int(part)))
+            except ValueError:
+                specs.append((None, None))
+    return specs
+
+
+def _border_for_row(specs: list[BorderSpec] | None, row_idx: int) -> BorderSpec | None:
+    if specs is None or row_idx >= len(specs):
+        return None
+    return specs[row_idx]
+
+
 def table_cell_xml(
     text: str,
     *,
-    width: int,
-    style: str,
+    width: int | str,
+    width_type: str = "dxa",
+    style: str | None,
     align: str,
-    font_size: int,
+    font_size: int | None,
+    font_size_cs: int | bool | None = None,
     bold: bool = False,
     bottom_border: bool = False,
     top_border: bool = False,
+    bottom_border_val: str | None = None,
+    top_border_val: str | None = None,
     bottom_border_size: int = 8,
     top_border_size: int = 8,
+    paragraph_after: int | None = 0,
+    paragraph_left: int | None = None,
+    paragraph_first_line: int | None = None,
+    paragraph_first_line_chars: int | None = None,
+    bold_cs: bool | None = None,
     grid_span: int | None = None,
     vmerge: str | None = None,
     preserve_breaks: bool = False,
     math_converter: MathConverter | None = None,
     reference_anchors: dict[str, str] | None = None,
 ) -> str:
+    run_kwargs: dict[str, object] = {}
+    if bold:
+        run_kwargs["bold"] = True
+    if bold_cs is not None:
+        run_kwargs["bold_cs"] = bold_cs
+    if font_size is not None:
+        run_kwargs["size"] = font_size
+    if font_size_cs is not None:
+        run_kwargs["size_cs"] = font_size_cs
     p = paragraph_with_inline_math_xml(
         text,
         style=style,
         align=align,
-        ppr_extra=spacing_xml(line=360, after=0),
+        ppr_extra=spacing_xml(line=360, after=paragraph_after),
+        left=paragraph_left,
+        first_line=paragraph_first_line,
+        first_line_chars=paragraph_first_line_chars,
         preserve_breaks=preserve_breaks,
-        run_kwargs={"bold": bold, "size": font_size},
+        run_kwargs=run_kwargs,
         math_converter=math_converter,
         reference_anchors=reference_anchors,
     )
-    tc_pr_parts = ["<w:tcPr>", f'<w:tcW w:w="{width}" w:type="dxa"/>']
+    tc_pr_parts = ["<w:tcPr>", f'<w:tcW w:w="{width}" w:type="{width_type}"/>']
     tc_pr_parts.append('<w:vAlign w:val="center"/>')
     if grid_span and grid_span > 1:
         tc_pr_parts.append(f'<w:gridSpan w:val="{grid_span}"/>')
@@ -56,16 +104,24 @@ def table_cell_xml(
         tc_pr_parts.append('<w:vMerge w:val="restart"/>')
     elif vmerge == "continue":
         tc_pr_parts.append("<w:vMerge/>")
-    if bottom_border or top_border:
+    effective_top_val = top_border_val or ("single" if top_border else None)
+    effective_bottom_val = bottom_border_val or ("single" if bottom_border else None)
+    if effective_bottom_val or effective_top_val:
         tc_pr_parts.append(
             "<w:tcBorders>"
         )
-        if top_border:
-            tc_pr_parts.append(f'<w:top w:val="single" w:sz="{top_border_size}" w:space="0" w:color="auto"/>')
-        if bottom_border:
-            tc_pr_parts.append(
-                f'<w:bottom w:val="single" w:sz="{bottom_border_size}" w:space="0" w:color="auto"/>'
-            )
+        if effective_top_val:
+            if effective_top_val == "single":
+                tc_pr_parts.append(f'<w:top w:val="single" w:sz="{top_border_size}" w:space="0" w:color="auto"/>')
+            else:
+                tc_pr_parts.append(f'<w:top w:val="{effective_top_val}"/>')
+        if effective_bottom_val:
+            if effective_bottom_val == "single":
+                tc_pr_parts.append(
+                    f'<w:bottom w:val="single" w:sz="{bottom_border_size}" w:space="0" w:color="auto"/>'
+                )
+            else:
+                tc_pr_parts.append(f'<w:bottom w:val="{effective_bottom_val}"/>')
         tc_pr_parts.append("</w:tcBorders>")
     tc_pr_parts.append("</w:tcPr>")
     return f"<w:tc>{''.join(tc_pr_parts)}{p}</w:tc>"
@@ -102,9 +158,36 @@ def table_xml(
     if table_look in {"", "none", "omit"}:
         table_look = None
     caption_text = options.get("caption", "").strip() if options else ""
+    cell_style_option = options.get("cell_style") if options and "cell_style" in options else cell_style
+    if cell_style_option in {"", "none", "omit"}:
+        cell_style_option = None
+    font_size_option = options.get("font_size", options.get("cell_font_size", "")) if options else ""
+    if font_size_option in {"inherit", "none", "omit"}:
+        cell_font_size = None
+    elif font_size_option:
+        cell_font_size = parse_int_option({"font_size": font_size_option}, "font_size", table_font_size)
+    else:
+        cell_font_size = table_font_size
+    paragraph_after_option = options.get("paragraph_after", "") if options else ""
+    paragraph_after = None if paragraph_after_option in {"inherit", "none", "omit"} else parse_int_option(options, "paragraph_after", 0)
+    paragraph_left = parse_int_option(options, "paragraph_left")
+    paragraph_first_line = parse_int_option(options, "paragraph_first_line")
+    paragraph_first_line_chars = parse_int_option(options, "paragraph_first_line_chars")
     caption_bold = parse_bool_option(options, "caption_bold", default=True)
     header_bold = parse_bool_option(options, "header_bold", default=True)
+    header_bold_cs = (
+        parse_bool_option(options, "header_bold_cs")
+        if options is not None and "header_bold_cs" in options
+        else None
+    )
+    body_bold_cs = (
+        parse_bool_option(options, "body_bold_cs")
+        if options is not None and "body_bold_cs" in options
+        else None
+    )
     header_top_border = parse_bool_option(options, "header_top_border", default=True)
+    header_top_border_size = parse_int_option(options, "header_top_border_size", 12) or 12
+    rowspan_restart_bottom_border = parse_bool_option(options, "rowspan_restart_bottom_border", default=True)
     cant_split = parse_bool_option(options, "cant_split", default=False)
     repeat_header_rows = parse_int_option(options, "repeat_header_rows")
     row_height = parse_int_option(options, "row_height")
@@ -112,6 +195,10 @@ def table_xml(
     row_height_rule = options.get("row_height_rule", "") if options else ""
     cant_split_rows = set(parse_widths_option(options.get("cant_split_rows") if options else None) or [])
     cell_margins = parse_widths_option(options.get("cell_margins") if options else None, expected_count=4)
+    cell_width_type = options.get("cell_width_type", "dxa") if options else "dxa"
+    cell_widths = parse_widths_option(options.get("cell_widths") if options else None, expected_count=col_count)
+    row_top_borders = _parse_border_specs(options.get("row_top_borders") if options else None)
+    row_bottom_borders = _parse_border_specs(options.get("row_bottom_borders") if options else None)
     has_header_flags = any(cell.header for row in rows for cell in row)
     plain_header_layout = (
         (col_count == 7 and header_names[:2] == ["任务", "条件"])
@@ -173,15 +260,25 @@ def table_xml(
 
     if caption_text:
         caption_row_idx = len(trs)
+        caption_top = _border_for_row(row_top_borders, caption_row_idx)
+        caption_bottom = _border_for_row(row_bottom_borders, caption_row_idx)
         caption_cell = table_cell_xml(
             caption_text,
-            width=sum(col_widths),
-            style=cell_style,
+            width=table_width,
+            width_type=table_width_type,
+            style=cell_style_option,
             align="center",
-            font_size=table_font_size,
+            font_size=cell_font_size,
             bold=caption_bold,
-            bottom_border=True,
-            bottom_border_size=top_border_size,
+            top_border_val=caption_top[0] if caption_top else None,
+            top_border_size=caption_top[1] or top_border_size if caption_top else top_border_size,
+            bottom_border=True if caption_bottom is None else False,
+            bottom_border_val=caption_bottom[0] if caption_bottom else None,
+            bottom_border_size=caption_bottom[1] or top_border_size if caption_bottom else top_border_size,
+            paragraph_after=paragraph_after,
+            paragraph_left=None,
+            paragraph_first_line=None,
+            paragraph_first_line_chars=None,
             grid_span=col_count if col_count > 1 else None,
             math_converter=math_converter,
             reference_anchors=reference_anchors,
@@ -195,11 +292,16 @@ def table_xml(
             table_cell_xml(
                 grouped_header["first"],
                 width=col_widths[0],
-                style=cell_style,
+                style=cell_style_option,
                 align="center",
-                font_size=table_font_size,
+                font_size=cell_font_size,
                 bold=True,
+                bold_cs=header_bold_cs,
                 vmerge="restart",
+                paragraph_after=paragraph_after,
+                paragraph_left=paragraph_left,
+                paragraph_first_line=paragraph_first_line,
+                paragraph_first_line_chars=paragraph_first_line_chars,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
@@ -211,11 +313,16 @@ def table_xml(
                 table_cell_xml(
                     task_name,
                     width=sum(col_widths[col_offset : col_offset + span]),
-                    style=cell_style,
+                    style=cell_style_option,
                     align="center",
-                    font_size=table_font_size,
+                    font_size=cell_font_size,
                     bold=True,
+                    bold_cs=header_bold_cs,
                     grid_span=span,
+                    paragraph_after=paragraph_after,
+                    paragraph_left=paragraph_left,
+                    paragraph_first_line=paragraph_first_line,
+                    paragraph_first_line_chars=paragraph_first_line_chars,
                     math_converter=math_converter,
                     reference_anchors=reference_anchors,
                 )
@@ -225,11 +332,16 @@ def table_xml(
             table_cell_xml(
                 grouped_header["avg"],
                 width=col_widths[-1],
-                style=cell_style,
+                style=cell_style_option,
                 align="center",
-                font_size=table_font_size,
+                font_size=cell_font_size,
                 bold=True,
+                bold_cs=header_bold_cs,
                 vmerge="restart",
+                paragraph_after=paragraph_after,
+                paragraph_left=paragraph_left,
+                paragraph_first_line=paragraph_first_line,
+                paragraph_first_line_chars=paragraph_first_line_chars,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
@@ -242,12 +354,16 @@ def table_xml(
             table_cell_xml(
                 "",
                 width=col_widths[0],
-                style=cell_style,
+                style=cell_style_option,
                 align="center",
-                font_size=table_font_size,
+                font_size=cell_font_size,
                 vmerge="continue",
                 bottom_border=True,
                 bottom_border_size=mid_border_size,
+                paragraph_after=paragraph_after,
+                paragraph_left=paragraph_left,
+                paragraph_first_line=paragraph_first_line,
+                paragraph_first_line_chars=paragraph_first_line_chars,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
@@ -259,12 +375,17 @@ def table_xml(
                     table_cell_xml(
                         f"k={step}",
                         width=col_widths[col_offset],
-                        style=cell_style,
+                        style=cell_style_option,
                         align="center",
-                        font_size=table_font_size,
+                        font_size=cell_font_size,
                         bold=True,
+                        bold_cs=header_bold_cs,
                         bottom_border=True,
                         bottom_border_size=mid_border_size,
+                        paragraph_after=paragraph_after,
+                        paragraph_left=paragraph_left,
+                        paragraph_first_line=paragraph_first_line,
+                        paragraph_first_line_chars=paragraph_first_line_chars,
                         math_converter=math_converter,
                         reference_anchors=reference_anchors,
                     )
@@ -274,12 +395,16 @@ def table_xml(
             table_cell_xml(
                 "",
                 width=col_widths[-1],
-                style=cell_style,
+                style=cell_style_option,
                 align="center",
-                font_size=table_font_size,
+                font_size=cell_font_size,
                 vmerge="continue",
                 bottom_border=True,
                 bottom_border_size=mid_border_size,
+                paragraph_after=paragraph_after,
+                paragraph_left=paragraph_left,
+                paragraph_first_line=paragraph_first_line,
+                paragraph_first_line_chars=paragraph_first_line_chars,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
@@ -291,7 +416,7 @@ def table_xml(
         start_row_idx = 1
 
     if not grouped_header:
-        active_rowspans: dict[int, int] = {}
+        active_rowspans: dict[int, tuple[int, TableCell]] = {}
         for r_idx, row in enumerate(rows):
             cells = []
             col_idx = 0
@@ -300,48 +425,106 @@ def table_xml(
             def append_rowspan_continuations() -> None:
                 nonlocal col_idx
                 while col_idx in active_rowspans:
+                    remaining_count, source_cell = active_rowspans[col_idx]
+                    row_output_idx = len(trs)
+                    row_bottom = _border_for_row(row_bottom_borders, row_output_idx)
                     cells.append(
                         table_cell_xml(
                             "",
                             width=col_widths[col_idx],
-                            style=cell_style,
+                            style=cell_style_option,
                             align="center",
-                            font_size=table_font_size,
+                            font_size=cell_font_size,
                             vmerge="continue",
-                            bottom_border=row_is_header,
-                            bottom_border_size=mid_border_size,
+                            bottom_border=row_is_header if row_bottom is None else False,
+                            bottom_border_val=row_bottom[0] if row_bottom else None,
+                            bottom_border_size=(row_bottom[1] if row_bottom and row_bottom[1] is not None else mid_border_size),
+                            paragraph_after=paragraph_after,
+                            paragraph_left=source_cell.continue_left
+                            if source_cell.continue_left is not None
+                            else source_cell.left
+                            if source_cell.left is not None
+                            else paragraph_left,
+                            paragraph_first_line=source_cell.continue_first_line
+                            if source_cell.continue_first_line is not None
+                            else source_cell.first_line
+                            if source_cell.first_line is not None
+                            else paragraph_first_line,
+                            paragraph_first_line_chars=source_cell.continue_first_line_chars
+                            if source_cell.continue_first_line_chars is not None
+                            else source_cell.first_line_chars
+                            if source_cell.first_line_chars is not None
+                            else paragraph_first_line_chars,
                             math_converter=math_converter,
                             reference_anchors=reference_anchors,
                         )
                     )
-                    remaining = active_rowspans[col_idx] - 1
+                    remaining = remaining_count - 1
                     if remaining <= 0:
                         del active_rowspans[col_idx]
                     else:
-                        active_rowspans[col_idx] = remaining
+                        active_rowspans[col_idx] = (remaining, source_cell)
                     col_idx += 1
 
             for cell in row:
                 append_rowspan_continuations()
                 cell_text = cell.text.strip()
                 cell_is_header = cell.header if has_header_flags else r_idx == 0
+                row_output_idx = len(trs)
+                row_top = _border_for_row(row_top_borders, row_output_idx)
+                row_bottom = _border_for_row(row_bottom_borders, row_output_idx)
                 if cell_is_header:
                     display_text = " ".join(cell_text.split()) if plain_header_layout else format_table_header_text(cell_text)
                 else:
                     display_text = cell_text
-                span_width = sum(col_widths[col_idx : col_idx + cell.colspan])
+                if cell.bold_cs is not None:
+                    cell_bold_cs = cell.bold_cs
+                elif cell_is_header:
+                    cell_bold_cs = header_bold_cs
+                else:
+                    cell_bold_cs = body_bold_cs
+                effective_cell_style = cell.style if cell.style is not None else cell_style_option
+                effective_cell_font_size = cell.font_size if cell.font_size is not None else cell_font_size
+                cell_first_line = (
+                    None
+                    if cell.omit_first_line
+                    else cell.first_line
+                    if cell.first_line is not None
+                    else paragraph_first_line
+                )
+                span_widths = cell_widths if cell_widths is not None else col_widths
+                span_width = sum(span_widths[col_idx : col_idx + cell.colspan])
                 cells.append(
+                    # A vertically merged cell often carries its visible
+                    # separator on the final merge row rather than the restart
+                    # cell, matching how Word templates commonly encode
+                    # complex multi-row headers.
                     table_cell_xml(
                         display_text,
                         width=span_width,
-                        style=cell_style,
+                        width_type=cell_width_type,
+                        style=effective_cell_style,
                         align=cell.align or "center",
-                        font_size=table_font_size,
+                        font_size=effective_cell_font_size,
+                        font_size_cs=cell.font_size_cs,
                         bold=cell_is_header and header_bold,
-                        bottom_border=cell_is_header,
-                        top_border=cell_is_header and header_top_border and r_idx == 0 and not caption_text,
-                        bottom_border_size=mid_border_size,
-                        top_border_size=top_border_size,
+                        bold_cs=cell_bold_cs,
+                        bottom_border=cell_is_header and (cell.rowspan <= 1 or rowspan_restart_bottom_border)
+                        if row_bottom is None
+                        else False,
+                        top_border=cell_is_header and header_top_border and r_idx == 0 and not caption_text if row_top is None else False,
+                        bottom_border_val=row_bottom[0]
+                        if row_bottom and (cell.rowspan <= 1 or rowspan_restart_bottom_border)
+                        else None,
+                        top_border_val=row_top[0] if row_top else None,
+                        bottom_border_size=(row_bottom[1] if row_bottom and row_bottom[1] is not None else mid_border_size),
+                        top_border_size=(row_top[1] if row_top and row_top[1] is not None else header_top_border_size),
+                        paragraph_after=paragraph_after,
+                        paragraph_left=cell.left if cell.left is not None else paragraph_left,
+                        paragraph_first_line=cell_first_line,
+                        paragraph_first_line_chars=cell.first_line_chars
+                        if cell.first_line_chars is not None
+                        else paragraph_first_line_chars,
                         grid_span=cell.colspan if cell.colspan > 1 else None,
                         vmerge="restart" if cell.rowspan > 1 else None,
                         preserve_breaks=cell_is_header and "\n" in display_text,
@@ -350,7 +533,7 @@ def table_xml(
                     )
                 )
                 if cell.rowspan > 1:
-                    active_rowspans[col_idx] = cell.rowspan - 1
+                    active_rowspans[col_idx] = (cell.rowspan - 1, cell)
                 col_idx += max(1, cell.colspan)
             append_rowspan_continuations()
             row_output_idx = len(trs)
@@ -372,11 +555,16 @@ def table_xml(
                 table_cell_xml(
                     display_text,
                     width=col_widths[col_idx],
-                    style=cell_style,
+                    width_type=cell_width_type,
+                    style=cell_style_option,
                     align="center",
-                    font_size=table_font_size,
+                    font_size=cell_font_size,
                     bold=r_idx == 0 and not grouped_header,
                     bottom_border=r_idx == 0 and not grouped_header,
+                    paragraph_after=paragraph_after,
+                    paragraph_left=paragraph_left,
+                    paragraph_first_line=paragraph_first_line,
+                    paragraph_first_line_chars=paragraph_first_line_chars,
                     preserve_breaks=r_idx == 0 and not grouped_header and "\n" in display_text,
                     math_converter=math_converter,
                     reference_anchors=reference_anchors,

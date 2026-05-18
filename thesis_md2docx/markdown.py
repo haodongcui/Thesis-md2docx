@@ -17,13 +17,24 @@ def needs_soft_wrap_space(left: str, right: str) -> bool:
 
 
 def join_soft_wrapped_lines(lines: list[str]) -> str:
-    parts = [line.strip() for line in lines if line.strip()]
+    parts: list[tuple[str, bool]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        stripped_right = line.rstrip()
+        hard_break = line.endswith("  ") or stripped_right.endswith("\\")
+        if stripped_right.endswith("\\"):
+            stripped_right = stripped_right[:-1]
+        parts.append((stripped_right.strip(), hard_break))
+
     if not parts:
         return ""
-    merged = parts[0]
-    for part in parts[1:]:
-        separator = " " if needs_soft_wrap_space(merged.rstrip(), part.lstrip()) else ""
+    merged = parts[0][0]
+    previous_hard_break = parts[0][1]
+    for part, hard_break in parts[1:]:
+        separator = "\n" if previous_hard_break else " " if needs_soft_wrap_space(merged.rstrip(), part.lstrip()) else ""
         merged += separator + part
+        previous_hard_break = hard_break
     return merged
 
 
@@ -123,6 +134,24 @@ def extract_abstract_and_keywords(text: str, keyword_prefix: str) -> tuple[list[
         else:
             body.append(paragraph)
     return body, keywords
+
+
+def extract_abstract_keyword_blocks(text: str, keyword_prefix: str) -> tuple[list[str], str, list[str]]:
+    paragraphs = split_plain_paragraphs(text)
+    before_keyword: list[str] = []
+    after_keyword: list[str] = []
+    keywords = ""
+    found_keyword = False
+    for paragraph in paragraphs:
+        if paragraph.startswith(keyword_prefix) and not found_keyword:
+            keywords = paragraph[len(keyword_prefix) :].strip()
+            found_keyword = True
+            continue
+        if found_keyword:
+            after_keyword.append(paragraph)
+        else:
+            before_keyword.append(paragraph)
+    return before_keyword, keywords, after_keyword
 
 
 def split_cover_title_lines(title: str) -> list[str]:

@@ -5,7 +5,42 @@ from xml.sax.saxutils import escape
 
 from ..constants import INLINE_CITATION_PATTERN
 from ..inline import split_inline_emphasis
-from .xml import break_run_xml, run_text_xml, xml_text
+from .xml import break_run_xml, run_text_xml, symbol_run_xml, xml_text
+
+
+INLINE_TOKEN_PATTERN = re.compile(
+    r"\{\{(?:(?P<sym>sym):(?P<font>[^:}]+):(?P<char>[0-9A-Fa-f]{1,8})|(?P<sup>sup):(?P<sup_text>[^{}]*?)|(?P<sub>sub):(?P<sub_text>[^{}]*?))\}\}"
+)
+
+
+def _text_and_symbol_runs(text: str, *, run_kwargs: dict[str, object]) -> list[str]:
+    runs: list[str] = []
+    last = 0
+    for match in INLINE_TOKEN_PATTERN.finditer(text):
+        if match.start() > last:
+            runs.append(run_text_xml(text[last : match.start()], **run_kwargs))
+        if match.group("sym"):
+            runs.append(
+                symbol_run_xml(
+                    font=match.group("font").strip(),
+                    char=match.group("char").upper(),
+                    bold=bool(run_kwargs.get("bold", False)),
+                    bold_cs=run_kwargs.get("bold_cs") if "bold_cs" in run_kwargs else None,
+                    italic=bool(run_kwargs.get("italic", False)),
+                    italic_cs=run_kwargs.get("italic_cs") if "italic_cs" in run_kwargs else None,
+                    size=int(run_kwargs["size"]) if run_kwargs.get("size") is not None else None,
+                )
+            )
+        elif match.group("sup"):
+            runs.append(run_text_xml(match.group("sup_text"), superscript=True, **run_kwargs))
+        else:
+            runs.append(run_text_xml(match.group("sub_text"), subscript=True, **run_kwargs))
+        last = match.end()
+    if last < len(text):
+        runs.append(run_text_xml(text[last:], **run_kwargs))
+    if not runs:
+        runs.append(run_text_xml("", **run_kwargs))
+    return runs
 
 
 def text_runs(text: str, run_kwargs: dict[str, object] | None = None, preserve_breaks: bool = False) -> list[str]:
@@ -28,7 +63,7 @@ def text_runs(text: str, run_kwargs: dict[str, object] | None = None, preserve_b
             local_kwargs["bold"] = True
         elif kind == "italic":
             local_kwargs["italic"] = True
-        runs.append(run_text_xml(value, **local_kwargs))
+        runs.extend(_text_and_symbol_runs(value, run_kwargs=local_kwargs))
     return runs
 
 
@@ -118,5 +153,3 @@ def citation_text_runs(
     if last < len(text):
         runs.extend(text_runs(text[last:], run_kwargs=run_kwargs))
     return runs
-
-

@@ -454,8 +454,44 @@ def _table_core(table: TableSummary) -> tuple[object, ...]:
     )
 
 
-def _table_detail(table: TableSummary) -> tuple[RowSummary, ...]:
-    return table.rows
+def _run_format(run: RunSummary | None) -> tuple[object, ...] | None:
+    if run is None:
+        return None
+    return (run.fonts, run.size, run.emphasis, run.position, run.color, run.lang)
+
+
+def _cell_detail(cell: CellSummary) -> tuple[object, ...]:
+    return (
+        cell.text,
+        cell.width,
+        cell.grid_span,
+        cell.vmerge,
+        cell.valign,
+        cell.margins,
+        cell.borders,
+        cell.paragraph,
+        _run_format(cell.run),
+    )
+
+
+def _row_detail(row: RowSummary) -> tuple[object, ...]:
+    return (row.height, row.flags, tuple(_cell_detail(cell) for cell in row.cells))
+
+
+def _table_detail(table: TableSummary) -> tuple[object, ...]:
+    return tuple(_row_detail(row) for row in table.rows)
+
+
+def _drawing_core(drawing: DrawingSummary | None) -> tuple[object, ...] | None:
+    if drawing is None:
+        return None
+    return (drawing.kind, drawing.extent, drawing.paragraph_text)
+
+
+def _drawing_detail(drawing: DrawingSummary | None) -> tuple[object, ...] | None:
+    if drawing is None:
+        return None
+    return (drawing.kind, drawing.extent, drawing.paragraph_text, drawing.docpr)
 
 
 def _match_tables(reference_tables: list[TableSummary], candidate_tables: list[TableSummary]) -> list[tuple[TableSummary, TableSummary | None]]:
@@ -574,7 +610,11 @@ def compare_docx(reference: Path, candidate: Path, *, queries: list[str]) -> str
     for idx in range(max(len(ref_drawings), len(candidate_drawings))):
         ref = ref_drawings[idx] if idx < len(ref_drawings) else None
         cand = candidate_drawings[idx] if idx < len(candidate_drawings) else None
-        lines.append(f"- #{idx + 1}: reference={ref}, candidate={cand}, status={_status(ref, cand)}")
+        lines.append(f"### Drawing {idx + 1}")
+        lines.append(f"- reference: {ref}")
+        lines.append(f"- candidate: {cand}")
+        lines.append(f"- core status: {_status(_drawing_core(ref), _drawing_core(cand))}")
+        lines.append(f"- detail status: {_status(_drawing_detail(ref), _drawing_detail(cand))}")
     lines.append("")
 
     lines.append("## Field Checks")

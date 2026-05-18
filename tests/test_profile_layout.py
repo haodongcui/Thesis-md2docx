@@ -37,7 +37,7 @@ def test_xju_profile_exposes_front_matter_and_layout_specs() -> None:
     assert validate_front_matter_plan(front, plan) == ()
 
     assert layout.cover.footer_kind == "empty"
-    assert layout.cover.section_type == "continuous"
+    assert layout.cover.section_type == "oddPage"
     assert layout.front_matter.page_number_format == "upperRoman"
     assert layout.front_matter.page_number_start == 1
     assert layout.body_start.page_number_format == "decimal"

@@ -191,6 +191,7 @@ md2docx compare-docx reference.docx candidate.docx --out output/audit.md
 - `reference.item`
 - `table.cell`
 - `math.block`
+- `body.image`
 - `header.default`
 - `footer.default`
 
@@ -261,12 +262,16 @@ thesis_md2docx/profiles/xju_undergraduate_thesis/body.py
 - `acknowledgement_heading_builder`
 - `caption_builder`
 - `reference_builder`
+- `special_paragraph_builder`
+- `image_builder`
 - `table_builder`
 - `appendix_heading_normalizer`
 - `appendix_reference_normalizer`
 - `section_pr_builder`
 
 这些 hook 让通用正文构建器不需要知道具体学校规则。简单格式可以只调整样式和段落参数；复杂学校模板可以通过 hook 接管局部渲染。
+
+其中 `image_builder` 用于控制图片段落的样式、段前段后、`keepNext`、图片 extent 和 Word 图片属性；`special_paragraph_builder` 用于识别普通 Markdown 段落中需要特殊渲染的行，例如固定说明文字、特殊签名行或模板中无法用常规段落表达的内容。普通 profile 不一定需要重写这些 hook，但做范例级复刻时应把它们作为可用扩展点。
 
 ## 前置页 Plan
 
@@ -358,3 +363,5 @@ IR block 不关心最终 Word 样式，只表达文档结构。例如：
 - `PageBreakBlock`
 
 这样新增格式时，可以复用 Markdown 解析结果，只重写 profile/layout 规则。
+
+需要精确复刻范例时，IR 可以带少量底层尺寸信息。例如 `ImageBlock.width_emu` / `height_emu` 用来表达 Word 图片实际 extent，`crop_top` / `crop_right` / `crop_bottom` / `crop_left` 用来表达 Word 图片裁剪；这类信息不属于某个学校，但可以让 profile 示例覆盖“范例里图片被手动缩放或裁剪过”的情况。

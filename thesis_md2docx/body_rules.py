@@ -18,6 +18,9 @@ class BodyParseRules:
     appendix_child_headings_unnumbered: bool = True
     appendix_formula_scope_prefix: str = "Appendix"
     unnumbered_headings: frozenset[str] = field(default_factory=frozenset)
+    toc_excluded_headings: frozenset[str] = field(default_factory=frozenset)
+    toc_exclude_appendix_children: bool = False
+    no_section_break_headings: frozenset[str] = field(default_factory=frozenset)
     skip_reference_paragraph_prefixes: tuple[str, ...] = ()
     reference_entry_pattern: Pattern[str] | None = None
     caption_pattern: Pattern[str] | None = None
@@ -52,6 +55,18 @@ class BodyParseRules:
         if text in self.unnumbered_headings:
             return True
         return bool(in_appendix and self.appendix_child_headings_unnumbered and level >= self.appendix_item_level)
+
+    def is_toc_heading(self, text: str, *, in_appendix: bool, level: int) -> bool:
+        if level > 3:
+            return False
+        if text in self.toc_excluded_headings:
+            return False
+        if in_appendix and self.toc_exclude_appendix_children:
+            return False
+        return True
+
+    def should_skip_section_break(self, text: str) -> bool:
+        return text in self.no_section_break_headings
 
     def should_skip_reference_paragraph(self, text: str) -> bool:
         return any(text.startswith(prefix) for prefix in self.skip_reference_paragraph_prefixes)

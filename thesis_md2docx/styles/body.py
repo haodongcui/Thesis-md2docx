@@ -12,6 +12,7 @@ class RunFormatSpec:
     font_hansi: str | None = None
     font_eastasia: str | None = None
     size: int | None = None
+    spacing: int | None = None
     bold: bool = False
     italic: bool = False
 
@@ -25,6 +26,8 @@ class RunFormatSpec:
             kwargs["font_eastasia"] = self.font_eastasia
         if self.size is not None:
             kwargs["size"] = self.size
+        if self.spacing is not None:
+            kwargs["spacing"] = self.spacing
         if self.bold:
             kwargs["bold"] = True
         if self.italic:
@@ -49,6 +52,7 @@ class BodyStyleRefs:
     quote: str | None = None
     code: str | None = None
     math: str | None = None
+    image: str | None = None
     caption: str | None = None
     table_cell: str | None = None
 
@@ -64,6 +68,7 @@ class BodyStyleRefs:
                 self.quote,
                 self.code,
                 self.math,
+                self.image,
                 self.caption,
                 self.table_cell,
             )
@@ -82,10 +87,13 @@ class BodyRenderProfile:
     acknowledgement_heading_builder: Callable[..., str] | None = None
     caption_builder: Callable[..., str] | None = None
     reference_builder: Callable[..., str] | None = None
+    special_paragraph_builder: Callable[..., str | None] | None = None
+    image_builder: Callable[..., str] | None = None
     table_builder: Callable[..., str] | None = None
     appendix_heading_normalizer: Callable[[str, int], str] | None = None
     appendix_reference_normalizer: Callable[[str, int], str] | None = None
     section_pr_builder: Callable[..., str] | None = None
+    chapter_section_break_builder: Callable[[str], str] | None = None
 
     def missing_styles(self, catalog: StyleCatalog) -> tuple[str, ...]:
         catalog_ids = catalog.style_ids()

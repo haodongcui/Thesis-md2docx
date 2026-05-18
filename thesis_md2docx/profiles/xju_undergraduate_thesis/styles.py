@@ -41,10 +41,13 @@ STYLE_HEADING_3 = "XjuHeading3"
 STYLE_FRONT_HEADING = "XjuFrontHeading"
 STYLE_TOC_FIELD = "XjuTocField"
 STYLE_CAPTION = "XjuCaption"
+STYLE_EXAMPLE_CAPTION = "af9"
+STYLE_ANNOTATION_REFERENCE = "af5"
 STYLE_REFERENCE = "XjuReference"
 STYLE_QUOTE = "XjuQuote"
 STYLE_CODE_BLOCK = "XjuCodeBlock"
-STYLE_MATH_BLOCK = "XjuMathBlock"
+STYLE_MATH_BLOCK = "af8"
+STYLE_FIGURE_IMAGE = "XjuFigureImage"
 STYLE_TABLE_TEXT = "XjuTableText"
 STYLE_HEADER = "XjuHeader"
 STYLE_FOOTER = "XjuFooter"
@@ -107,6 +110,7 @@ def xju_style_roles() -> StyleRoleMap:
             StyleRole.QUOTE_BLOCK: STYLE_QUOTE,
             StyleRole.CODE_BLOCK: STYLE_CODE_BLOCK,
             StyleRole.MATH_BLOCK: STYLE_MATH_BLOCK,
+            StyleRole.BODY_IMAGE: STYLE_FIGURE_IMAGE,
             StyleRole.TABLE_CELL: STYLE_TABLE_TEXT,
             StyleRole.HEADER_DEFAULT: STYLE_HEADER,
             StyleRole.FOOTER_DEFAULT: STYLE_FOOTER,
@@ -219,6 +223,17 @@ def xju_style_catalog() -> StyleCatalog:
                 ),
             ),
             StyleSpec(
+                style_id="afa",
+                name="目录标题",
+                based_on="Normal",
+                q_format=True,
+                paragraph_props=style_props(
+                    spacing(before_lines=300, before=720, after_lines=200, after=480, line=288),
+                    justification("center"),
+                ),
+                run_props=style_props(run_size(32)),
+            ),
+            StyleSpec(
                 style_id=STYLE_TOC_FIELD,
                 name="XJU TOC Field",
                 based_on="Normal",
@@ -233,7 +248,7 @@ def xju_style_catalog() -> StyleCatalog:
                 name="toc 1",
                 based_on="Normal",
                 paragraph_props=style_props(
-                    tabs(tab("right", 8313, leader="dot")),
+                    tabs(tab("right", 8303, leader="dot")),
                     spacing(after=0, line=288),
                 ),
                 run_props=style_props(
@@ -246,8 +261,8 @@ def xju_style_catalog() -> StyleCatalog:
                 name="toc 2",
                 based_on="Normal",
                 paragraph_props=style_props(
-                    tabs(tab("right", 8313, leader="dot")),
-                    indent(left=100),
+                    tabs(tab("right", 8303, leader="dot")),
+                    indent(left=210),
                     spacing(after=0, line=288),
                 ),
                 run_props=style_props(
@@ -260,8 +275,8 @@ def xju_style_catalog() -> StyleCatalog:
                 name="toc 3",
                 based_on="Normal",
                 paragraph_props=style_props(
-                    tabs(tab("right", 8313, leader="dot")),
-                    indent(left=200),
+                    tabs(tab("right", 8303, leader="dot")),
+                    indent(left=420),
                     spacing(after=0, line=288),
                 ),
                 run_props=style_props(
@@ -301,6 +316,25 @@ def xju_style_catalog() -> StyleCatalog:
                 ),
             ),
             StyleSpec(
+                style_id=STYLE_ANNOTATION_REFERENCE,
+                name="annotation reference",
+                style_type="character",
+                q_format=True,
+                run_props=style_props(run_size(21)),
+            ),
+            StyleSpec(
+                style_id=STYLE_EXAMPLE_CAPTION,
+                name="图表题注",
+                based_on="Normal",
+                next_style="Normal",
+                q_format=True,
+                paragraph_props=style_props(
+                    spacing(before_lines=50, before=50, after_lines=50, after=50, line=288),
+                    justification("center"),
+                ),
+                run_props=style_props('<w:szCs w:val="21"/>'),
+            ),
+            StyleSpec(
                 style_id=STYLE_CAPTION,
                 name="XJU Caption",
                 based_on="Normal",
@@ -320,10 +354,18 @@ def xju_style_catalog() -> StyleCatalog:
                 style_id=STYLE_REFERENCE,
                 name="XJU Reference",
                 based_on="Normal",
-                paragraph_props=style_props(spacing(line=360)),
+                paragraph_props=style_props(
+                    '<w:overflowPunct w:val="0"/>',
+                    '<w:autoSpaceDN w:val="0"/>',
+                    '<w:adjustRightInd w:val="0"/>',
+                    snap_to_grid(False),
+                    spacing(line=288),
+                ),
                 run_props=style_props(
-                    run_fonts(ascii="Times New Roman", hansi="Times New Roman", eastasia="宋体"),
-                    run_size(21),
+                    run_fonts(complex_script="Courier New"),
+                    snap_to_grid(False),
+                    kern(0),
+                    '<w:szCs w:val="21"/>',
                 ),
             ),
             StyleSpec(
@@ -343,7 +385,6 @@ def xju_style_catalog() -> StyleCatalog:
                 paragraph_props=style_props(
                     spacing(after=120),
                     shading("clear", "F5F5F5"),
-                    outline_level(9),
                 ),
                 run_props=style_props(
                     run_fonts(ascii="Courier New", hansi="Courier New", eastasia="等线"),
@@ -352,15 +393,26 @@ def xju_style_catalog() -> StyleCatalog:
             ),
             StyleSpec(
                 style_id=STYLE_MATH_BLOCK,
-                name="XJU Math Block",
+                name="公式",
+                based_on="Normal",
+                paragraph_props=style_props(
+                    tabs(tab("right", 8971)),
+                    spacing(before_lines=50, before=120, after_lines=50, after=120),
+                    indent(first_line_chars=200, first_line=480),
+                ),
+                run_props=style_props(
+                    run_size(24, complex_size=21),
+                ),
+            ),
+            StyleSpec(
+                style_id=STYLE_FIGURE_IMAGE,
+                name="XJU Figure Image",
                 based_on="Normal",
                 paragraph_props=style_props(
                     justification("center"),
-                    spacing(before=120, after=120, line=360),
+                    spacing(before_lines=50, before=50, after_lines=50, after=50, line=288),
                 ),
-                run_props=style_props(
-                    run_fonts(ascii="Cambria Math", hansi="Cambria Math", eastasia="Cambria Math"),
-                ),
+                run_props=style_props(run_size(21)),
             ),
             StyleSpec(
                 style_id=STYLE_TABLE_TEXT,

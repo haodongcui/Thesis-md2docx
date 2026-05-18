@@ -46,6 +46,8 @@ IMAGE_CONTENT_TYPES = {
     "jpeg": "image/jpeg",
     "gif": "image/gif",
     "bmp": "image/bmp",
+    "wmf": "image/x-wmf",
+    "emf": "image/x-emf",
 }
 IMAGE_REL_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 EMU_PER_INCH = 914400

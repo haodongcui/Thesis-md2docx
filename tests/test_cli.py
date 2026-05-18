@@ -65,3 +65,19 @@ def test_compare_docx_command_writes_audit_report(tmp_path) -> None:
     assert "## Table Checks" in report
     assert "## Drawing Checks" in report
     assert "## Field Checks" in report
+
+
+def test_compare_pdf_command_is_compat_command(monkeypatch, tmp_path) -> None:
+    calls = []
+
+    def fake_run_compare_pdf(args):
+        calls.append(args)
+        return 0
+
+    monkeypatch.setattr("thesis_md2docx.main.run_compare_pdf", fake_run_compare_pdf)
+
+    status = main(["compare-pdf", str(tmp_path / "ref.pdf"), str(tmp_path / "candidate.pdf"), "--dpi", "120"])
+
+    assert status == 0
+    assert calls
+    assert calls[0].dpi == 120

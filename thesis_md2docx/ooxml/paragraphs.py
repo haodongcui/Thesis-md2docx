@@ -3,8 +3,11 @@ from __future__ import annotations
 from ..constants import BODY_TEXT_CENTER_TWIPS, BODY_TEXT_WIDTH_TWIPS, INLINE_CITATION_PATTERN
 from ..inline import split_inline_code, split_inline_math
 from ..math.converter import MathConverter
+from ..toc import TocEntry
 from .text import citation_text_runs, inline_code_run_xml, text_runs
 from .xml import (
+    bookmark_end_xml,
+    bookmark_start_xml,
     field_char_run_xml,
     indent_xml,
     instr_text_run_xml,
@@ -23,6 +26,7 @@ def paragraph_with_inline_math_xml(
     ppr_extra: str = "",
     first_line_chars: int | None = None,
     first_line: int | None = None,
+    left: int | None = None,
     preserve_breaks: bool = False,
     run_kwargs: dict[str, object] | None = None,
     math_converter: MathConverter | None = None,
@@ -49,6 +53,7 @@ def paragraph_with_inline_math_xml(
             ppr_extra=ppr_extra,
             first_line_chars=first_line_chars,
             first_line=first_line,
+            left=left,
             preserve_breaks=preserve_breaks,
             run_kwargs=run_kwargs,
         )
@@ -77,6 +82,7 @@ def paragraph_with_inline_math_xml(
         ppr_extra=ppr_extra,
         first_line_chars=first_line_chars,
         first_line=first_line,
+        left=left,
     )
 
 
@@ -128,8 +134,8 @@ def math_paragraph_xml(
     if math_converter:
         omml = math_converter.get(latex, display_mode=True)
         if omml:
-            return paragraph_xml(style=style, align=align, runs=[omml], ppr_extra=math_ppr_extra)
-    return paragraph_xml(latex, style=style, align=align, ppr_extra=math_ppr_extra)
+            return paragraph_xml(style=style, align=align or "center", runs=[omml], ppr_extra=math_ppr_extra)
+    return paragraph_xml(latex, style=style, align=align or "center", ppr_extra=math_ppr_extra)
 
 
 def paragraph_xml(
@@ -142,13 +148,14 @@ def paragraph_xml(
     ppr_extra: str = "",
     first_line_chars: int | None = None,
     first_line: int | None = None,
+    left: int | None = None,
 ) -> str:
     ppr: list[str] = []
     if style:
         ppr.append(f'<w:pStyle w:val="{style}"/>')
     if align:
         ppr.append(f'<w:jc w:val="{align}"/>')
-    indent = indent_xml(first_line_chars=first_line_chars, first_line=first_line)
+    indent = indent_xml(first_line_chars=first_line_chars, first_line=first_line, left=left)
     if indent:
         ppr.append(indent)
     if ppr_extra:
@@ -174,6 +181,7 @@ def formatted_paragraph_xml(
     ppr_extra: str = "",
     first_line_chars: int | None = None,
     first_line: int | None = None,
+    left: int | None = None,
     run_kwargs: dict[str, object] | None = None,
     preserve_breaks: bool = False,
 ) -> str:
@@ -185,6 +193,7 @@ def formatted_paragraph_xml(
         ppr_extra=ppr_extra,
         first_line_chars=first_line_chars,
         first_line=first_line,
+        left=left,
     )
 
 
@@ -213,10 +222,7 @@ def add_section_to_paragraph_xml(paragraph: str, sect_pr: str) -> str:
 def toc_field_paragraph_xml(*, style: str | None = None) -> str:
     runs = [
         field_char_run_xml("begin", dirty=True),
-        # Restrict the TOC to heading styles only. The school template marks some
-        # non-heading styles (for example the code block style) with outline levels,
-        # and the `\\u` switch would pull those paragraphs into the TOC.
-        instr_text_run_xml(' TOC \\o "1-3" \\h \\z '),
+        instr_text_run_xml('TOC \\o "1-3" \\h \\u '),
         field_char_run_xml("separate"),
         run_text_xml(" ", size=24),
         field_char_run_xml("end"),
@@ -226,3 +232,72 @@ def toc_field_paragraph_xml(*, style: str | None = None) -> str:
         style=style,
         ppr_extra=spacing_xml(line=288),
     )
+
+
+def bookmark_paragraph_xml(paragraph: str, *, bookmark_id: int, anchor: str) -> str:
+    bookmark_start = bookmark_start_xml(bookmark_id, anchor)
+    bookmark_end = bookmark_end_xml(bookmark_id)
+    insert_at = paragraph.find("<w:r")
+    if insert_at == -1:
+        insert_at = paragraph.find("</w:p>")
+    if insert_at == -1:
+        return paragraph
+    paragraph = paragraph[:insert_at] + bookmark_start + paragraph[insert_at:]
+    close_at = paragraph.rfind("</w:p>")
+    if close_at == -1:
+        return paragraph
+    return paragraph[:close_at] + bookmark_end + paragraph[close_at:]
+
+
+def _toc_style_for_level(level: int, styles: dict[int, str] | None) -> str | None:
+    if not styles:
+        return None
+    return styles.get(level)
+
+
+def toc_cache_entry_paragraph_xml(
+    entry: TocEntry,
+    *,
+    first: bool = False,
+    close_field: bool = False,
+    toc_field_style: str | None = None,
+    toc_level_styles: dict[int, str] | None = None,
+    tab_pos: int = 8303,
+) -> str:
+    style = _toc_style_for_level(entry.level, toc_level_styles)
+    ppr_extra = (
+        f'<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="{tab_pos}"/></w:tabs>'
+        + spacing_xml(line=288)
+    )
+    if entry.level == 2:
+        ppr_extra += indent_xml(left=210)
+    elif entry.level >= 3:
+        ppr_extra += indent_xml(left=420)
+
+    runs: list[str] = []
+    if first:
+        runs.append(field_char_run_xml("begin", dirty=True))
+        runs.append(instr_text_run_xml('TOC \\o "1-3" \\h \\u '))
+        runs.append(field_char_run_xml("separate"))
+
+    runs.append(f'<w:hyperlink w:anchor="{entry.anchor}" w:history="1">')
+    runs.extend(text_runs(entry.text))
+    runs.append(tab_run_xml())
+    runs.append(field_char_run_xml("begin"))
+    runs.append(instr_text_run_xml(f" PAGEREF {entry.anchor} \\h "))
+    runs.append(field_char_run_xml("separate"))
+    runs.append(run_text_xml("1"))
+    runs.append(field_char_run_xml("end"))
+    runs.append("</w:hyperlink>")
+    if close_field:
+        runs.append(field_char_run_xml("end"))
+
+    return paragraph_xml(
+        style=style or toc_field_style,
+        runs=runs,
+        ppr_extra=ppr_extra,
+    )
+
+
+def toc_cache_end_paragraph_xml() -> str:
+    return paragraph_xml(runs=[field_char_run_xml("end")], ppr_extra=spacing_xml(line=288))

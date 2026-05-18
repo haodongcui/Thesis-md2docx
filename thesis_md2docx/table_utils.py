@@ -15,6 +15,17 @@ class ParsedTableCell:
     rowspan: int = 1
     header: bool = False
     align: str | None = None
+    left: int | None = None
+    first_line: int | None = None
+    first_line_chars: int | None = None
+    continue_left: int | None = None
+    continue_first_line: int | None = None
+    continue_first_line_chars: int | None = None
+    bold_cs: bool | None = None
+    style: str | None = None
+    font_size: int | None = None
+    font_size_cs: int | bool | None = None
+    omit_first_line: bool = False
 
 
 ParsedTableRows = list[list[ParsedTableCell]]
@@ -55,11 +66,58 @@ def parse_bool_option(options: Mapping[str, str] | None, name: str, default: boo
     return options[name].strip().lower() not in {"0", "false", "no", "off"}
 
 
-def _parse_cell_attrs(raw_attrs: str) -> tuple[int, int, str | None, bool]:
+def _parse_int_attr(value: str) -> int | None:
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _parse_bool_attr(value: str) -> bool:
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _parse_size_cs_attr(value: str) -> int | bool | None:
+    normalized = value.strip().lower()
+    if normalized in {"0", "false", "no", "off", "omit", "none"}:
+        return False
+    return _parse_int_attr(value)
+
+
+def _parse_cell_attrs(
+    raw_attrs: str,
+) -> tuple[
+    int,
+    int,
+    str | None,
+    bool,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    bool | None,
+    str | None,
+    int | None,
+    int | bool | None,
+    bool,
+]:
     colspan = 1
     rowspan = 1
     align = None
     header = False
+    left = None
+    first_line = None
+    first_line_chars = None
+    continue_left = None
+    continue_first_line = None
+    continue_first_line_chars = None
+    bold_cs = None
+    style = None
+    font_size = None
+    font_size_cs = None
+    omit_first_line = False
     for part in raw_attrs.split():
         if "=" not in part:
             if part == "header":
@@ -82,7 +140,48 @@ def _parse_cell_attrs(raw_attrs: str) -> tuple[int, int, str | None, bool]:
             align = value
         elif key == "header":
             header = value.lower() not in {"0", "false", "no"}
-    return colspan, rowspan, align, header
+        elif key == "left":
+            left = _parse_int_attr(value)
+        elif key == "first_line":
+            if value.lower() in {"omit", "none"}:
+                omit_first_line = True
+            else:
+                first_line = _parse_int_attr(value)
+        elif key == "first_line_chars":
+            first_line_chars = _parse_int_attr(value)
+        elif key in {"continue_left", "rowspan_continue_left"}:
+            continue_left = _parse_int_attr(value)
+        elif key in {"continue_first_line", "rowspan_continue_first_line"}:
+            continue_first_line = _parse_int_attr(value)
+        elif key in {"continue_first_line_chars", "rowspan_continue_first_line_chars"}:
+            continue_first_line_chars = _parse_int_attr(value)
+        elif key == "bold_cs":
+            bold_cs = _parse_bool_attr(value)
+        elif key in {"style", "p_style"}:
+            style = value
+        elif key in {"font_size", "cell_font_size"}:
+            font_size = _parse_int_attr(value)
+        elif key in {"font_size_cs", "size_cs"}:
+            font_size_cs = _parse_size_cs_attr(value)
+        elif key == "omit_first_line":
+            omit_first_line = _parse_bool_attr(value)
+    return (
+        colspan,
+        rowspan,
+        align,
+        header,
+        left,
+        first_line,
+        first_line_chars,
+        continue_left,
+        continue_first_line,
+        continue_first_line_chars,
+        bold_cs,
+        style,
+        font_size,
+        font_size_cs,
+        omit_first_line,
+    )
 
 
 def parse_table_cell(raw: str, *, header: bool = False) -> ParsedTableCell:
@@ -91,9 +190,36 @@ def parse_table_cell(raw: str, *, header: bool = False) -> ParsedTableCell:
     rowspan = 1
     align = None
     explicit_header = False
+    left = None
+    first_line = None
+    first_line_chars = None
+    continue_left = None
+    continue_first_line = None
+    continue_first_line_chars = None
+    bold_cs = None
+    style = None
+    font_size = None
+    font_size_cs = None
+    omit_first_line = False
     attr_match = re.search(r"\s*\{([^{}]+)\}\s*$", text)
     if attr_match:
-        colspan, rowspan, align, explicit_header = _parse_cell_attrs(attr_match.group(1))
+        (
+            colspan,
+            rowspan,
+            align,
+            explicit_header,
+            left,
+            first_line,
+            first_line_chars,
+            continue_left,
+            continue_first_line,
+            continue_first_line_chars,
+            bold_cs,
+            style,
+            font_size,
+            font_size_cs,
+            omit_first_line,
+        ) = _parse_cell_attrs(attr_match.group(1))
         text = text[: attr_match.start()].rstrip()
     return ParsedTableCell(
         text=text,
@@ -101,6 +227,17 @@ def parse_table_cell(raw: str, *, header: bool = False) -> ParsedTableCell:
         rowspan=rowspan,
         header=header or explicit_header,
         align=align,
+        left=left,
+        first_line=first_line,
+        first_line_chars=first_line_chars,
+        continue_left=continue_left,
+        continue_first_line=continue_first_line,
+        continue_first_line_chars=continue_first_line_chars,
+        bold_cs=bold_cs,
+        style=style,
+        font_size=font_size,
+        font_size_cs=font_size_cs,
+        omit_first_line=omit_first_line,
     )
 
 

@@ -5,6 +5,7 @@ import re
 from .body_rules import BodyParseRules
 from .constants import IMAGE_PATTERN
 from .ir import (
+    BlankBlock,
     Block,
     CodeBlock,
     FigureRowBlock,
@@ -19,11 +20,19 @@ from .ir import (
     TableSplitBlock,
 )
 from .markdown import join_soft_wrapped_lines
-from .table_utils import is_table_separator, parse_int_option, parse_table_options, parse_table_row
+from .table_utils import is_table_separator, parse_bool_option, parse_int_option, parse_table_options, parse_table_row
 
 
 RICH_TABLE_START_PATTERN = re.compile(r"^:::\s*table(?:\s*\{(?P<attrs>.*)\})?\s*$")
 RICH_TABLE_END_PATTERN = re.compile(r"^:::\s*$")
+IMAGE_ATTR_PATTERN = re.compile(
+    r"^!\[(?P<alt>[^\]]*)\]\((?P<target>[^)]+)\)(?:\s*\{(?P<attrs>[^{}]*)\})?$"
+)
+MATH_START_PATTERN = re.compile(r"^\$\$(?:\s*\{(?P<attrs>[^{}]*)\})?\s*$")
+PARAGRAPH_ATTR_PATTERN = re.compile(
+    r"^<!--\s*thesis-(?:paragraph|p)\s*:\s*(?P<attrs>.*?)\s*-->\s*$"
+)
+BLANK_PATTERN = re.compile(r"^<!--\s*thesis-blank(?:\s*:\s*(?P<attrs>.*?))?\s*-->\s*$")
 
 
 def _table_cells_from_line(line: str, *, header: bool = False) -> tuple[TableCell, ...]:
@@ -34,6 +43,17 @@ def _table_cells_from_line(line: str, *, header: bool = False) -> tuple[TableCel
             rowspan=cell.rowspan,
             header=cell.header or header,
             align=cell.align,
+            left=cell.left,
+            first_line=cell.first_line,
+            first_line_chars=cell.first_line_chars,
+            continue_left=cell.continue_left,
+            continue_first_line=cell.continue_first_line,
+            continue_first_line_chars=cell.continue_first_line_chars,
+            bold_cs=cell.bold_cs,
+            style=cell.style,
+            font_size=cell.font_size,
+            font_size_cs=cell.font_size_cs,
+            omit_first_line=cell.omit_first_line,
         )
         for cell in parse_table_row(line, header=header)
     )
@@ -63,25 +83,65 @@ def _rich_table_rows(table_lines: list[str], options: dict[str, str]) -> list[tu
     ]
 
 
+def _parse_image_block(line: str) -> ImageBlock | None:
+    match = IMAGE_ATTR_PATTERN.match(line.strip())
+    if not match:
+        return None
+    options = parse_table_options(match.group("attrs") or "")
+    return ImageBlock(
+        target=match.group("target").strip(),
+        alt_text=match.group("alt").strip(),
+        raw_text=line,
+        options=options,
+        width_emu=parse_int_option(options, "width_emu"),
+        height_emu=parse_int_option(options, "height_emu"),
+        crop_top=parse_int_option(options, "crop_top"),
+        crop_right=parse_int_option(options, "crop_right"),
+        crop_bottom=parse_int_option(options, "crop_bottom"),
+        crop_left=parse_int_option(options, "crop_left"),
+    )
+
+
+def _math_block_from_lines(lines: list[str], options: dict[str, str]) -> MathBlock | None:
+    math_text = "\n".join(lines).strip("\n")
+    if not math_text and "image" not in options:
+        return None
+    return MathBlock(
+        math_text,
+        image=options.get("image"),
+        image_alt=options.get("image_alt", ""),
+        image_width_emu=parse_int_option(options, "width_emu"),
+        image_height_emu=parse_int_option(options, "height_emu"),
+        image_mode=options.get("image_mode", options.get("image_type", "drawing")),
+        image_first_line=parse_int_option(options, "first_line"),
+        image_first_line_chars=parse_int_option(options, "first_line_chars"),
+        image_position=parse_int_option(options, "position"),
+        image_include_shapetype=parse_bool_option(options, "include_shapetype"),
+    )
+
+
 def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list[Block]:
     rules = rules or BodyParseRules()
     lines = text.splitlines()
     blocks: list[Block] = []
     paragraph_buffer: list[str] = []
+    pending_paragraph_options: dict[str, str] | None = None
     i = 0
     in_code = False
     code_lines: list[str] = []
     in_math = False
     math_lines: list[str] = []
+    math_options: dict[str, str] = {}
 
     def flush_paragraph() -> None:
-        nonlocal paragraph_buffer
+        nonlocal paragraph_buffer, pending_paragraph_options
         if not paragraph_buffer:
             return
         paragraph = join_soft_wrapped_lines(paragraph_buffer).strip()
         paragraph_buffer = []
         if paragraph:
-            blocks.append(ParagraphBlock(paragraph))
+            blocks.append(ParagraphBlock(paragraph, options=pending_paragraph_options))
+            pending_paragraph_options = None
 
     while i < len(lines):
         line = lines[i]
@@ -101,11 +161,12 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
 
         if in_math:
             if stripped == "$$":
-                math_text = "\n".join(math_lines).strip("\n")
-                if math_text:
-                    blocks.append(MathBlock(math_text))
+                math_block = _math_block_from_lines(math_lines, math_options)
+                if math_block is not None:
+                    blocks.append(math_block)
                 in_math = False
                 math_lines = []
+                math_options = {}
             else:
                 math_lines.append(line.rstrip("\n"))
             i += 1
@@ -118,15 +179,31 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
             i += 1
             continue
 
-        if stripped == "$$":
+        math_start_match = MATH_START_PATTERN.match(stripped)
+        if math_start_match:
             flush_paragraph()
             in_math = True
             math_lines = []
+            math_options = parse_table_options(math_start_match.group("attrs") or "")
             i += 1
             continue
 
         if not stripped:
             flush_paragraph()
+            i += 1
+            continue
+
+        paragraph_attr_match = PARAGRAPH_ATTR_PATTERN.match(stripped)
+        if paragraph_attr_match:
+            flush_paragraph()
+            pending_paragraph_options = parse_table_options(paragraph_attr_match.group("attrs") or "")
+            i += 1
+            continue
+
+        blank_match = BLANK_PATTERN.match(stripped)
+        if blank_match:
+            flush_paragraph()
+            blocks.append(BlankBlock(parse_table_options(blank_match.group("attrs") or "")))
             i += 1
             continue
 
@@ -149,15 +226,9 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
                 if rules.is_figure_row_end(candidate_stripped):
                     break
                 if candidate_stripped:
-                    image_match = IMAGE_PATTERN.match(candidate_stripped)
-                    if image_match:
-                        figure_items.append(
-                            ImageBlock(
-                                target=image_match.group("target").strip(),
-                                alt_text=image_match.group("alt").strip(),
-                                raw_text=candidate_stripped,
-                            )
-                        )
+                    image_block = _parse_image_block(candidate_stripped)
+                    if image_block is not None:
+                        figure_items.append(image_block)
                 i += 1
             blocks.append(FigureRowBlock(tuple(figure_items), tuple(raw_block)))
             i += 1
@@ -183,16 +254,10 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
             i += 1
             continue
 
-        image_match = IMAGE_PATTERN.match(stripped)
-        if image_match:
+        image_block = _parse_image_block(stripped)
+        if image_block is not None:
             flush_paragraph()
-            blocks.append(
-                ImageBlock(
-                    target=image_match.group("target").strip(),
-                    alt_text=image_match.group("alt").strip(),
-                    raw_text=line,
-                )
-            )
+            blocks.append(image_block)
             i += 1
             continue
 
@@ -241,6 +306,8 @@ def parse_body_blocks(text: str, *, rules: BodyParseRules | None = None) -> list
     if in_code and code_lines:
         blocks.append(CodeBlock("\n".join(code_lines)))
     if in_math and math_lines:
-        blocks.append(MathBlock("\n".join(math_lines)))
+        math_block = _math_block_from_lines(math_lines, math_options)
+        if math_block is not None:
+            blocks.append(math_block)
 
     return blocks

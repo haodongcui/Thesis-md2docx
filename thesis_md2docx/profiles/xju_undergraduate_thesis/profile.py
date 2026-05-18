@@ -44,7 +44,7 @@ class XjuUndergraduateThesisProfile(ThesisProfile):
 
     def document_layout(self) -> DocumentLayout:
         return DocumentLayout(
-            cover=SectionSpec(with_header=True, footer_kind="empty", section_type="continuous"),
+            cover=SectionSpec(with_header=True, footer_kind="empty", section_type="oddPage"),
             front_matter=SectionSpec(
                 with_header=True,
                 footer_kind="page",

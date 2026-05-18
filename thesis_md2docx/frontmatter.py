@@ -51,13 +51,17 @@ def wrap_taskbook_text(text: str, *, max_chars: int = 31, max_lines: int = 6) ->
 
 
 def taskbook_run_kwargs(*, bold: bool = False, size: int = 24) -> dict[str, object]:
-    return {
+    kwargs: dict[str, object] = {
         "font_ascii": "宋体",
         "font_hansi": "宋体",
-        "font_eastasia": "宋体",
+        "font_cs": "宋体",
+        "font_hint": "eastAsia",
         "bold": bold,
         "size": size,
     }
+    if size == 24:
+        kwargs["size_cs"] = False
+    return kwargs
 
 
 def taskbook_display_width(text: str) -> int:

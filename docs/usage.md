@@ -59,6 +59,7 @@ npm install --prefix thesis_md2docx/math/latex2omml_node
 ---
 
 ## 任务书
+自动补全：是
 届：2026
 工作开始日期：2026 年 3 月 1 日
 工作结束日期：2026 年 5 月 20 日
@@ -134,6 +135,8 @@ KEY WORDS: Keyword one; Keyword two; Keyword three
 作者签名：![电子签名](img/signature.png)
 ```
 
+`任务书` 默认会用封面信息回填学院、班级、姓名、题目、指导教师。若要复刻学校范例中的空白任务书，可在任务书中写 `自动补全：否`。
+
 ## 正文标题
 
 正文从第一个编号一级标题开始：
@@ -162,6 +165,15 @@ KEY WORDS: Keyword one; Keyword two; Keyword three
 这是第二段正文。
 ```
 
+如果需要保留 Word 段落内部的人工换行，可以在 Markdown 行末写两个空格，或写反斜杠：
+
+```markdown
+这一行导出后仍会在同一段落内换行。\
+这一行不会被合并到上一行末尾。
+```
+
+普通论文正文不建议大量手动断行；只有复刻学校范例、固定封面字段或控制个别段落分页时才建议使用。
+
 引用块和代码块支持基础导出：
 
 ````markdown
@@ -189,6 +201,22 @@ def example():
 - 图题单独成行。
 - 图题建议写成 `图 2-1 xxx`。
 - 图片缺失时导出器会放置占位文本，最终提交前必须检查。
+
+如果需要复刻模板中的精确图片尺寸，可以在图片后追加尺寸属性：
+
+```markdown
+![实验流程图](img/pipeline.png){width_emu=4942840 height_emu=2432685 crop_bottom=7802}
+```
+
+`width_emu` 和 `height_emu` 使用 Word OOXML 的 EMU 单位；只写其中一个时会按图片原比例自动计算另一个。`crop_top` / `crop_right` / `crop_bottom` / `crop_left` 使用 OOXML 的千分之一百分比裁剪值，适合复刻范例里被 Word 手动裁剪过的图片。普通论文写作通常不需要手动指定这些属性，只有对齐学校范例或固定版面时才建议使用。
+
+需要复刻模板中图片所在段落的样式和段前段后时，也可以追加图片段落属性：
+
+```markdown
+![图1-1 标题](img/figure.png){width_emu=4942840 height_emu=2432685 p_style=af9 align=none line=360 before=120 after=120 keep_next=false}
+```
+
+常用属性包括 `p_style`、`align`、`line`、`before`、`after`、`before_lines`、`after_lines`、`mark_style` 和 `keep_next`。这些属性偏底层，主要用于 profile 示例复刻，不建议普通写作时频繁手调。
 
 ## 并排图
 
@@ -243,7 +271,7 @@ def example():
 表 1-2 方弯管内流动最大速度比较
 
 ::: table {width=8529 width_type=dxa widths=2251,1546,1548,1547,1637 top_border=18 bottom_border=18 header_rows=2 header_bold=false}
-| 项目 {rowspan=2} | 层流 {colspan=2} | 紊流 {colspan=2} |
+| 项目 {rowspan=2 continue_left=44 continue_first_line=1764 continue_first_line_chars=840} | 层流 {colspan=2} | 紊流 {colspan=2} |
 | 0°截面 | 90°截面 | 0°截面 | 90°截面 |
 | 理论值 Vmax/m·s-1 | 0.04 | 0.03 | 1.30 | 1.25 |
 | 计算值 Vmax/m·s-1 | 0.04 | 0.03 | 1.26 | 1.21 |
@@ -261,7 +289,18 @@ def example():
 - `row_height` / `row_heights`：设置统一行高或逐行行高，单位 dxa。
 - `repeat_header_rows` / `cant_split_rows`：精确控制重复表头行和禁止跨页拆分的行。
 - `layout` / `look` / `cell_margins`：控制底层 Word 表布局、`tblLook` 和表格单元格边距。
+- `cell_width_type` / `cell_widths`：当表宽用 `pct` 但网格列宽仍用 dxa 时，可单独控制单元格 `tcW`。
+- `cell_style=none` / `font_size=inherit` / `paragraph_after=omit`：少写直接属性，尽量复刻模板继承出来的单元格样式。
+- `header_bold_cs=true` / `rowspan_restart_bottom_border=false`：复刻复杂表头里只写复杂字体加粗、纵向合并起始格不写底线的情况。
+- `body_bold_cs=true`：复刻表体 run 带复杂字体加粗标记的情况。
+- `paragraph_first_line` / `paragraph_first_line_chars` / `header_top_border_size`：控制单元格内段落缩进和表头单元格顶线粗细。
+- `row_top_borders` / `row_bottom_borders`：逐行声明单元格顶线/底线，值可写 `12`、`8`、`nil`、`none`。
 - 单元格 `{colspan=2}`、`{rowspan=2}`：横向/纵向合并。
+- 单元格 `{left=44}`、`{first_line=480}`、`{first_line_chars=200}`：覆盖单个单元格内段落缩进。
+- 单元格 `{continue_left=44}`、`{continue_first_line=1764}`、`{continue_first_line_chars=840}`：覆盖纵向合并续接单元格的段落缩进。
+- 单元格 `{bold_cs=false}`、`{style=10}`、`{font_size=21}`、`{font_size_cs=false}`、`{first_line=omit}`：覆盖单元格内 run 和段落属性。
+- `{{sym:Times New Roman:0000}}` 可写入 Word 符号 run，用于复刻范例文件中的特殊符号结构。
+- `{{sup:-1}}` / `{{sub:max}}` 可写入 Word 上标/下标 run；结合 `*...*` 可表达斜体变量下标，如 `*V{{sub:max}}*`。
 
 ## 公式
 
@@ -280,6 +319,16 @@ $$
 ```
 
 如果安装了公式转换依赖，公式会尽量转换为 Word 原生 OMML；否则会以 LaTeX 文本保底导出。
+
+需要复刻 Word 模板中已经排好的公式视觉效果时，可以给公式块指定图片：
+
+```markdown
+$$ {image=img/formula-1-1.wmf image_alt="公式 1-1" width_emu=750570 height_emu=284480}
+q = k_d H^x
+$$
+```
+
+这种写法保留 LaTeX 作为源文本，但导出时优先嵌入 `image` 指定的图片，并继续使用自动公式编号。`width_emu` / `height_emu` 使用 Word OOXML 的 EMU 单位；普通论文写作优先使用纯 LaTeX 公式，只有对齐学校范例或固定版面时才建议指定公式图片。
 
 安装公式依赖：
 
@@ -362,3 +411,11 @@ md2docx thesis.md --pdf --out output --backend word
 ```
 
 LibreOffice 后端适合快速预览或没有 Word 的环境，但最终分页和字体效果仍以 Word/WPS 人工检查为准。
+
+如果要和学校范例或历史版本做视觉回归，可以对比 PDF 页面像素：
+
+```bash
+md2docx compare-pdf reference.pdf output/thesis.pdf --out output/pdf-audit.md --diff-dir output/pdf-diff
+```
+
+`--diff-dir` 会为存在差异的页面生成红色差异图。该命令依赖 `pdftoppm`，DPI 可用 `--dpi` 调整。

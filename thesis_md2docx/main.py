@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +12,7 @@ from .exporter import write_docx
 from .pdf.common import PdfError
 from .pdf.main import add_backend_options, convert_from_args
 from .pdf.registry import backend_names
+from .pdf_compare import add_compare_pdf_parser, render_pdf_to_images, run_compare_pdf
 from .profiles import DEFAULT_PROFILE_NAME, profile_names
 
 
@@ -56,16 +56,7 @@ def add_docx_options(parser: argparse.ArgumentParser) -> None:
 
 
 def render_pdf_pages(pdf_path: Path, pages_dir: Path, *, dpi: int) -> None:
-    pdftoppm = shutil.which("pdftoppm")
-    if not pdftoppm:
-        raise ValueError("pdftoppm not found; install poppler-utils or add pdftoppm to PATH")
-    pages_dir.mkdir(parents=True, exist_ok=True)
-    for path in pages_dir.glob("page*.png"):
-        path.unlink()
-    subprocess.run(
-        [pdftoppm, "-png", "-r", str(dpi), str(pdf_path), str(pages_dir / "page")],
-        check=True,
-    )
+    render_pdf_to_images(pdf_path, pages_dir, dpi=dpi, prefix="page")
     print(f"PDF pages written to: {pages_dir / 'page-*.png'}")
 
 
@@ -195,6 +186,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  md2docx thesis.md --pdf --pages\n"
             "  md2docx thesis.md --pdf --pages --out output --backend auto\n"
             "  md2docx check --backend auto\n"
+            "  md2docx compare-pdf reference.pdf output/thesis.pdf --out output/pdf-audit.md --diff-dir output/pdf-diff\n"
             "\n"
             "Compatibility commands:\n"
             f"  md2docx docx thesis.md thesis.docx --profile {DEFAULT_PROFILE_NAME}\n"
@@ -250,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("backends", help="print supported PDF backend names")
     subparsers.add_parser("profiles", help="print supported thesis format profile names")
     add_compare_docx_parser(subparsers)
+    add_compare_pdf_parser(subparsers)
     return parser
 
 
@@ -264,6 +257,7 @@ COMPAT_COMMANDS = {
     "backends",
     "profiles",
     "compare-docx",
+    "compare-pdf",
 }
 
 
@@ -301,7 +295,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "compare-docx":
             return run_compare_docx(args)
-    except (PdfError, ValueError) as exc:
+        if args.command == "compare-pdf":
+            return run_compare_pdf(args)
+    except (PdfError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 2

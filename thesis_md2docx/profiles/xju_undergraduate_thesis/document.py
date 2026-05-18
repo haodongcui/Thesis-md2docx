@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from ...builders.document import build_document_elements
+from ...builders.document import build_document_elements, collect_toc_entries
 from ...constants import REL_ID_EMPTY_FOOTER, REL_ID_EMPTY_HEADER
 from .frontmatter import (
     build_blank_paragraph,
@@ -22,7 +22,7 @@ from .frontmatter import (
 from ...frontmatter import parse_inline_image_value, split_statement_content
 from ...layout import FrontMatterPageSpec
 from ...markdown import (
-    extract_abstract_and_keywords,
+    extract_abstract_keyword_blocks,
     parse_cover_info,
     parse_markdown_document,
 )
@@ -34,10 +34,13 @@ from ...ooxml.render import (
     page_break_xml,
     paragraph_xml,
     section_break_paragraph_xml,
+    toc_cache_entry_paragraph_xml,
     toc_field_paragraph_xml,
 )
 from ...ooxml.xml import spacing_xml
+from ...ooxml.xml import indent_xml
 from ...styles import StyleRole
+from ...toc import TocEntry
 from ..base import ThesisProfile
 
 A4_WIDTH_TWIPS = 11907
@@ -281,8 +284,8 @@ def _append_abstract_page(
     math_converter: MathConverter | None,
     reference_anchors: dict[str, str] | None,
 ) -> None:
-    paragraphs, keywords = extract_abstract_and_keywords(text, page.keyword_prefix)
-    if not paragraphs and not keywords:
+    paragraphs, keywords, after_keyword = extract_abstract_keyword_blocks(text, page.keyword_prefix)
+    if not paragraphs and not keywords and not after_keyword:
         return
     elements.append(
         build_front_heading(
@@ -302,8 +305,17 @@ def _append_abstract_page(
         )
     keyword_paragraph = build_keyword_paragraph(keywords, english=page.english)
     if keyword_paragraph:
-        elements.append(build_blank_paragraph())
+        elements.append(build_blank_paragraph(line=360 if page.english else 405))
         elements.append(keyword_paragraph)
+    for paragraph in after_keyword:
+        elements.append(
+            build_body_paragraph(
+                paragraph,
+                english=page.english,
+                math_converter=math_converter,
+                reference_anchors=reference_anchors,
+            )
+        )
     if page.page_break_after:
         elements.append(page_break_xml())
 
@@ -314,10 +326,34 @@ def _append_toc_page(
     thesis_profile: ThesisProfile,
     page: FrontMatterPageSpec,
     front_sect: str,
+    toc_entries: list[TocEntry] | None = None,
 ) -> None:
     elements.append(build_front_heading(page.title, toc=True))
     toc_style = thesis_profile.style_roles().require(StyleRole.TOC_FIELD)
-    elements.append(add_section_to_paragraph_xml(toc_field_paragraph_xml(style=toc_style), front_sect))
+    toc_level_styles = {
+        1: thesis_profile.style_roles().require(StyleRole.TOC_LEVEL1),
+        2: thesis_profile.style_roles().require(StyleRole.TOC_LEVEL2),
+        3: thesis_profile.style_roles().require(StyleRole.TOC_LEVEL3),
+    }
+    if not toc_entries:
+        elements.append(add_section_to_paragraph_xml(toc_field_paragraph_xml(style=toc_style), front_sect))
+        return
+    for index, entry in enumerate(toc_entries):
+        is_last = index == len(toc_entries) - 1
+        paragraph = toc_cache_entry_paragraph_xml(
+            entry,
+            first=index == 0,
+            close_field=is_last,
+            toc_field_style=toc_style,
+            toc_level_styles=toc_level_styles,
+        )
+        elements.append(paragraph)
+    elements.append(
+        paragraph_xml(
+            style=thesis_profile.style_roles().require(StyleRole.BODY_HEADING_LEVEL1),
+            ppr_extra=spacing_xml(line=240) + indent_xml(left=0, first_line=0) + front_sect,
+        )
+    )
 
 
 def build_document(
@@ -348,6 +384,13 @@ def build_document(
     body_continue_sect = thesis_profile.section_from_spec(layout.body_continue)
     taskbook_text = front_sections.get(front_spec.taskbook_key or "", "").strip()
     external_taskbook_pdf = _resolve_external_taskbook_pdf(taskbook_text, markdown_dir)
+
+    body_rules = thesis_profile.body_parse_rules()
+    toc_entries = collect_toc_entries(
+        body_text,
+        rules=body_rules,
+        appendix_heading_normalizer=profile.appendix_heading_normalizer,
+    )
 
     elements: list[str] = []
     taskbook_added = False
@@ -389,14 +432,15 @@ def build_document(
                     taskbook=_front_text(front_sections, page),
                     cover_info=cover_info,
                 )
+                if taskbook_added:
+                    elements.append(page_break_xml())
             continue
         if page.kind == "abstract":
             _append_abstract_page(
                 elements,
                 page=page,
                 text=_front_text(front_sections, page),
-                page_break_before=(not page.english and taskbook_added and not taskbook_ended_with_section)
-                or page.page_break_before,
+                page_break_before=page.page_break_before,
                 math_converter=math_converter,
                 reference_anchors=reference_anchors,
             )
@@ -407,13 +451,13 @@ def build_document(
                 thesis_profile=thesis_profile,
                 page=page,
                 front_sect=front_continue_sect if taskbook_ended_with_section else front_sect,
+                toc_entries=toc_entries,
             )
             continue
-
-    body_elements, body_has_section_breaks = build_document_elements(
+    body_elements, body_has_section_breaks, _ = build_document_elements(
         body_text,
         profile=profile,
-        rules=thesis_profile.body_parse_rules(),
+        rules=body_rules,
         treat_first_heading_as_title=False,
         math_converter=math_converter,
         reference_anchors=reference_anchors,

@@ -6,10 +6,14 @@ thesis_md2docx/math/latex2omml_node/node_modules/
 example/output/*.docx
 example/output/*.pdf
 example/output/pages/*.png
+example/output/pdf-diff/
+example/output/pdf-rendered/
 example_xju/output/*.docx
 example_xju/output/*.pdf
 example_xju/output/*.md
 example_xju/output/pages/*.png
+example_xju/output/pdf-diff/
+example_xju/output/pdf-rendered/
 example/preview/
 .env
 

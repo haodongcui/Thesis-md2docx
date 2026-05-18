@@ -18,6 +18,7 @@ class StyleRole:
     QUOTE_BLOCK = "quote.block"
     CODE_BLOCK = "code.block"
     MATH_BLOCK = "math.block"
+    BODY_IMAGE = "body.image"
     TABLE_CELL = "table.cell"
     HEADER_DEFAULT = "header.default"
     FOOTER_DEFAULT = "footer.default"
@@ -40,6 +41,7 @@ COMMON_THESIS_STYLE_ROLES: tuple[str, ...] = (
     StyleRole.QUOTE_BLOCK,
     StyleRole.CODE_BLOCK,
     StyleRole.MATH_BLOCK,
+    StyleRole.BODY_IMAGE,
     StyleRole.TABLE_CELL,
     StyleRole.HEADER_DEFAULT,
     StyleRole.FOOTER_DEFAULT,
